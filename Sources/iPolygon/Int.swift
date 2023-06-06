@@ -7,6 +7,9 @@
 
 extension Int {
 
+    @usableFromInline
+    static let empty = -1
+    
     @inlinable
     func next(_ n: Int) -> Int {
         let x = self + 1
@@ -18,4 +21,5 @@ extension Int {
         let x = self - 1
         return x < 0 ? (n - 1) : x
     }
+
 }

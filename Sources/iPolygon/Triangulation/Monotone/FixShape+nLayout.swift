@@ -11,15 +11,15 @@ import iFixFloat
 enum MNodeType: Int {
     case end
     case start
-    case split
     case merge
+    case split
 }
 
 @usableFromInline
-struct MNode {
+struct MSpecialNode {
     
     @usableFromInline
-    static let empty = MNode(index: .empty, type: .start, sort: .zero)
+    static let empty = MSpecialNode(index: .empty, type: .start, sort: .zero)
     
     @usableFromInline
     let type: MNodeType
@@ -42,15 +42,15 @@ struct MNode {
 struct NodeLayout {
     
     @usableFromInline
-    let verts: [MVert]
+    let navNodes: [MNavNode]
     
     @usableFromInline
-    let nodes: [MNode]
+    let specNodes: [MSpecialNode]
     
     @inlinable
-    init(verts: [MVert], nodes: [MNode]) {
-        self.verts = verts
-        self.nodes = nodes
+    init(verts: [MNavNode], nodes: [MSpecialNode]) {
+        self.navNodes = verts
+        self.specNodes = nodes
     }
 }
 
@@ -63,8 +63,8 @@ extension FixShape {
             n += path.count
         }
         
-        var verts = [MVert](repeating: .empty, count: n)
-        var nodes = [MNode]()
+        var verts = [MNavNode](repeating: .empty, count: n)
+        var nodes = [MSpecialNode]()
         
         var s = 0
         for j in 0..<paths.count {
@@ -95,10 +95,10 @@ extension FixShape {
                 if c0 || c1 {
                     let isCW = Triangle.isClockwise(p0: p0, p1: p1, p2: p2)
                     let type: MNodeType = c0 ? (isCW ? .start : .split) : (isCW ? .end : .merge)
-                    nodes.append(MNode(index: i, type: type, sort: b1))
+                    nodes.append(MSpecialNode(index: i, type: type, sort: b1))
                 }
 
-                verts[i] = MVert(next: i2 + s, prev: i0 + s, vert: Vx(id: i, index: i, point: p1))
+                verts[i] = MNavNode(next: i2 + s, index: i, prev: i0 + s, vert: DVertex(index: i, point: p1, type: .origin))
                 
                 i0 = i1
                 i1 = i2

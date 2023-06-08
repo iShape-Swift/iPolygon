@@ -8,49 +8,56 @@
 import iFixFloat
 
 @usableFromInline
-struct MSlice {
+struct MNavNode {
     
     @usableFromInline
-    let a: Vx
+    static let empty = MNavNode(next: .empty, index: .empty, prev: .empty, vert: .empty)
     
     @usableFromInline
-    let b: Vx
-    
-    @inlinable
-    init(a: Vx, b: Vx) {
-        self.a = a
-        self.b = b
-    }
-}
-
-@usableFromInline
-struct MVert {
+    var next: Int
     
     @usableFromInline
-    static let empty = MVert(next: .empty, prev: .empty, vert: .empty)
+    let index: Int
     
     @usableFromInline
-    fileprivate (set) var next: Int
+    var prev: Int
     
     @usableFromInline
-    fileprivate (set) var prev: Int
-    
-    @usableFromInline
-    let vert: Vx
+    let vert: DVertex
  
     @inlinable
-    init(next: Int, prev: Int, vert: Vx) {
+    init(next: Int, index: Int, prev: Int, vert: DVertex) {
         self.next = next
+        self.index = index
         self.prev = prev
         self.vert = vert
     }
     
 }
 
-extension Array where Element == MVert {
+@usableFromInline
+struct ABVert {
+    
+    @usableFromInline
+    let a: MNavNode
+    
+    @usableFromInline
+    let b: MNavNode
     
     @inlinable
-    mutating func newNext(a: Int, b: Int) -> MSlice {
+    var slice: MSlice { MSlice(a: a.vert.index, b: b.vert.index) }
+    
+    @inlinable
+    init(a: MNavNode, b: MNavNode) {
+        self.a = a
+        self.b = b
+    }
+}
+
+extension Array where Element == MNavNode {
+    
+    @inlinable
+    mutating func newNext(a: Int, b: Int) -> ABVert {
         var aVert = self[a]
         var bVert = self[b]
 
@@ -58,19 +65,21 @@ extension Array where Element == MVert {
 
         // add new verts
         
-        let newA = MVert(
+        let newA = MNavNode(
             next: count + 1,
+            index: count,
             prev: aVert.prev,
-            vert: Vx(index: count, vx: aVert.vert)
+            vert: aVert.vert
         )
         self.append(newA)
         
         self[aVert.prev].next = count
 
-        let newB = MVert(
+        let newB = MNavNode(
             next: bVert.next,
+            index: count + 1,
             prev: count,
-            vert: Vx(index: count + 1, vx: bVert.vert)
+            vert: bVert.vert
         )
 
         self.append(newB)
@@ -84,7 +93,7 @@ extension Array where Element == MVert {
         self[a] = aVert
         self[b] = bVert
         
-        return MSlice(a: newA.vert, b: newB.vert)
+        return ABVert(a: newA, b: newB)
     }
     
     @inlinable

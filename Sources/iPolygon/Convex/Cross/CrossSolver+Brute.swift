@@ -79,10 +79,10 @@ private struct Edge {
         let b0 = other.p0.point
         let b1 = other.p1.point
         
-        let d0 = Self.isCCW(a: a0, b: b0, c: b1)
-        let d1 = Self.isCCW(a: a1, b: b0, c: b1)
-        let d2 = Self.isCCW(a: a0, b: a1, c: b0)
-        let d3 = Self.isCCW(a: a0, b: a1, c: b1)
+        let d0 = Triangle.clockDirection(p0: a0, p1: b0, p2: b1)
+        let d1 = Triangle.clockDirection(p0: a1, p1: b0, p2: b1)
+        let d2 = Triangle.clockDirection(p0: a0, p1: a1, p2: b0)
+        let d3 = Triangle.clockDirection(p0: a0, p1: a1, p2: b1)
 
         if d0 == 0 || d1 == 0 || d2 == 0 || d3 == 0 {
             if d0 == 0 && d1 == 0 && d2 == 0 && d3 == 0 {
@@ -239,22 +239,7 @@ private struct Edge {
             return .init(isCross: false, pin: .zero)
         }
     }
-    
-    private static func isCCW(a: FixVec, b: FixVec, c: FixVec) -> Int {
-        let m0 = (c.y - a.y) * (b.x - a.x)
-        let m1 = (b.y - a.y) * (c.x - a.x)
 
-        if m0 < m1 {
-            return -1
-        }
-        
-        if m0 > m1 {
-            return 1
-        }
-
-        return 0
-    }
-    
     private static func crossPoint(a0: FixVec, a1: FixVec, b0: FixVec, b1: FixVec) -> FixVec {
         let dxA = a0.x - a1.x
         let dyB = b0.y - b1.y

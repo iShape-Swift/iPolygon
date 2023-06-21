@@ -39,10 +39,6 @@ extension FixShape {
         
         var startList = [Int]()
         startList.append(first.index)
-        
-        guard nLayout.specNodes.count > 2 else {
-            return MLayout(startList: startList, navNodes: nLayout.navNodes, sliceList: [], status: .success)
-        }
 
         var specs = nLayout.specNodes
         var navs = nLayout.navNodes
@@ -181,7 +177,14 @@ extension FixShape {
         guard j == specs.count else {
             return .fail
         }
-        
+
+#if DEBUG
+        for start in startList {
+            assert(!navs.isEmpty(start: start))
+            assert(start == navs.findStart(index: start))
+        }
+#endif
+
         return MLayout(startList: startList, navNodes: navs, sliceList: sliceList, status: .success)
     }
 

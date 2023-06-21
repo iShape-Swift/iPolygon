@@ -38,9 +38,9 @@ public extension ConvexOverlaySolver {
             let aArea = Self.directArea(s0: pin0.a, s1: pin1.a, points: a)
             let bArea = Self.directArea(s0: pin0.b, s1: pin1.b, points: b)
             
-            let area = aArea - bArea
+            let unsafeArea = aArea - bArea
             
-            result.append(ABResult(a: aPath, b: bPath, area: area))
+            result.append(ABResult(a: aPath, b: bPath, unsafeArea: unsafeArea))
         }
         
         return result
@@ -52,9 +52,9 @@ public extension ConvexOverlaySolver {
             return []
         }
 
-        var area: [FixVec] = []
+        var unsafeArea: [FixVec] = []
 
-        area.append(s0.p)
+        unsafeArea.append(s0.p)
 
         if s0.m < s1.m {
             // example from 3 to 6
@@ -64,7 +64,7 @@ public extension ConvexOverlaySolver {
             let last = s1.m.offset == 0 ? s1.m.index : s1.m.index + 1
             
             while i < last {
-                area.append(points[i])
+                unsafeArea.append(points[i])
                 i += 1
             }
         } else {
@@ -72,7 +72,7 @@ public extension ConvexOverlaySolver {
             var i = s0.m.index + 1
             
             while i < points.count {
-                area.append(points[i])
+                unsafeArea.append(points[i])
                 i += 1
             }
 
@@ -80,14 +80,14 @@ public extension ConvexOverlaySolver {
             let last = s1.m.offset == 0 ? s1.m.index : s1.m.index + 1
             
             while i < last {
-                area.append(points[i])
+                unsafeArea.append(points[i])
                 i += 1
             }
         }
         
-        area.append(s1.p)
+        unsafeArea.append(s1.p)
         
-        return area
+        return unsafeArea
     }
     
     static func debugIntersect(polyA a: [FixVec], polyB b: [FixVec]) -> Convex {
@@ -132,7 +132,7 @@ public extension ConvexOverlaySolver {
 public struct ABResult {
     public let a: [FixVec]
     public let b: [FixVec]
-    public let area: FixFloat
+    public let unsafeArea: FixFloat
 }
     
 #endif

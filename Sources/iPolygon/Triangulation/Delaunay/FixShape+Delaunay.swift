@@ -133,7 +133,7 @@ extension FixShape {
         var a0 = links[c.next]
         var b0 = links[c.prev]
         
-        while a0.vert.index != b0.vert.index {
+        while a0.index != b0.index {
             let a1 = links[a0.next]
             let b1 = links[b0.prev]
             
@@ -152,10 +152,10 @@ extension FixShape {
             if aBit0 <= bBit1 && bBit0 <= aBit1 {
                 triangleStack.add(a: c.vert, b: a0.vert, c: b0.vert)
                 
-                a0.prev = b0.vert.index
-                b0.next = a0.vert.index
-                links[a0.vert.index] = a0
-                links[b0.vert.index] = b0
+                a0.prev = b0.index
+                b0.next = a0.index
+                links[a0.index] = a0
+                links[b0.index] = b0
                 
                 if bBit0 < aBit0 {
                     c = b0
@@ -176,12 +176,12 @@ extension FixShape {
                         if isCW_or_Line {
                             triangleStack.add(a: ax0.vert, b: ax1.vert, c: cx.vert)
                             
-                            ax1.prev = cx.vert.index
-                            cx.next = ax1.vert.index
-                            links[cx.vert.index] = cx
-                            links[ax1.vert.index] = ax1
+                            ax1.prev = cx.index
+                            cx.next = ax1.index
+                            links[cx.index] = cx
+                            links[ax1.index] = ax1
                             
-                            if cx.vert.index != c.vert.index {
+                            if cx.index != c.index {
                                 // move back
                                 ax0 = cx
                                 cx = links[cx.prev]
@@ -207,12 +207,12 @@ extension FixShape {
                         if isCW_or_Line {
                             triangleStack.add(a: bx0.vert, b: cx.vert, c: bx1.vert)
                             
-                            bx1.next = cx.vert.index
-                            cx.prev = bx1.vert.index
-                            links[cx.vert.index] = cx
-                            links[bx1.vert.index] = bx1
+                            bx1.next = cx.index
+                            cx.prev = bx1.index
+                            links[cx.index] = cx
+                            links[bx1.index] = bx1
                             
-                            if cx.vert.index != c.vert.index {
+                            if cx.index != c.index {
                                 // move back
                                 bx0 = cx
                                 cx = links[cx.next]
@@ -230,7 +230,7 @@ extension FixShape {
                     } while bx1Bit < aBit0
                 }
                 
-                c = links[c.vert.index]
+                c = links[c.index]
                 a0 = links[c.next]
                 b0 = links[c.prev]
                 
@@ -239,10 +239,10 @@ extension FixShape {
                 
                 triangleStack.add(a: c.vert, b: a0.vert, c: b0.vert)
                 
-                a0.prev = b0.vert.index
-                b0.next = a0.vert.index
-                links[a0.vert.index] = a0
-                links[b0.vert.index] = b0
+                a0.prev = b0.index
+                b0.next = a0.index
+                links[a0.index] = a0
+                links[b0.index] = b0
                 
                 if bBit0 < aBit0 {
                     c = b0

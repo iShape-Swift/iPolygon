@@ -10,37 +10,51 @@ import iFixFloat
 public struct Triangle {
 
     @inlinable
-    static func areaTwo(p0: FixVec, p1: FixVec, p2: FixVec) -> FixFloat {
+    public static func unsafeAreaTwo(p0: FixVec, p1: FixVec, p2: FixVec) -> FixFloat {
         (p1 - p0).unsafeCrossProduct(p1 - p2)
     }
     
     @inlinable
-    static func area(p0: FixVec, p1: FixVec, p2: FixVec) -> FixFloat {
-        areaTwo(p0: p0, p1: p1, p2: p2) / 2
+    public static func unsafeArea(p0: FixVec, p1: FixVec, p2: FixVec) -> FixFloat {
+        unsafeAreaTwo(p0: p0, p1: p1, p2: p2) / 2
     }
     
     @inlinable
-    static func fixArea(p0: FixVec, p1: FixVec, p2: FixVec) -> FixFloat {
+    public static func fixArea(p0: FixVec, p1: FixVec, p2: FixVec) -> FixFloat {
         (p1 - p0).crossProduct(p1 - p2) / 2
     }
     
     @inlinable
-    static func isClockwise(p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
-        areaTwo(p0: p0, p1: p1, p2: p2) > 0
+    public static func isClockwise(p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
+        unsafeAreaTwo(p0: p0, p1: p1, p2: p2) > 0
     }
 
     @inlinable
-    static func isCW_or_Line(p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
-        areaTwo(p0: p0, p1: p1, p2: p2) >= 0
+    public static func isCW_or_Line(p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
+        unsafeAreaTwo(p0: p0, p1: p1, p2: p2) >= 0
     }
     
     @inlinable
-    static func isNotLine(p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
-        areaTwo(p0: p0, p1: p1, p2: p2) != 0
+    public static func isNotLine(p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
+        unsafeAreaTwo(p0: p0, p1: p1, p2: p2) != 0
     }
     
     @inlinable
-    static func isContain(p: FixVec, p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
+    public static func clockDirection(p0: FixVec, p1: FixVec, p2: FixVec) -> Int {
+        let area = unsafeAreaTwo(p0: p0, p1: p1, p2: p2)
+        if area < 0 {
+            return -1
+        }
+        
+        if area > 0 {
+            return 1
+        }
+        
+        return 0
+    }
+    
+    @inlinable
+    public static func isContain(p: FixVec, p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
         let q0 = (p - p1).unsafeCrossProduct(p0 - p1)
         let q1 = (p - p2).unsafeCrossProduct(p1 - p2)
         let q2 = (p - p0).unsafeCrossProduct(p2 - p0)
@@ -52,7 +66,7 @@ public struct Triangle {
     }
     
     @inlinable
-    static func isNotContain(p: FixVec, p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
+    public static func isNotContain(p: FixVec, p0: FixVec, p1: FixVec, p2: FixVec) -> Bool {
         let q0 = (p - p1).unsafeCrossProduct(p0 - p1)
         let q1 = (p - p2).unsafeCrossProduct(p1 - p2)
         let q2 = (p - p0).unsafeCrossProduct(p2 - p0)

@@ -135,5 +135,59 @@ extension Array where Element == MNavNode {
         
         return isNext || isPrev
     }
+    
+#if DEBUG
+    
+    @inlinable
+    func findStart(index: Int) -> Int {
+        let this = self[index]
+        var next = self[this.next]
+        var prev = self[this.prev]
+        
+        var bit = this.vert.point.bitPack
+        var aBit = next.vert.point.bitPack
+        var bBit = prev.vert.point.bitPack
+        
+        if aBit < bit {
+            repeat {
+                next = self[next.next]
+                bit = aBit
+                aBit = next.vert.point.bitPack
+            } while aBit < bit
+            return next.prev
+        } else if bBit < bit {
+            repeat {
+                prev = self[prev.prev]
+                bit = bBit
+                bBit = prev.vert.point.bitPack
+            } while bBit < bit
+            return prev.next
+        } else {
+            return index
+        }
+    }
+    
+    @inlinable
+    func isEmpty(start: Int) -> Bool {
+        var next = self[start]
+        var p0 = next.vert.point
+        
+        var unsafeArea: FixFloat = 0
 
+        repeat {
+            next = self[next.next]
+            let p1 = next.vert.point
+           
+            unsafeArea += p0.unsafeCrossProduct(p1)
+
+            p0 = p1
+        } while next.index != start
+
+        if unsafeArea > 0 {
+            print(unsafeArea)
+        }
+        
+        return unsafeArea == 0
+    }
+#endif
 }

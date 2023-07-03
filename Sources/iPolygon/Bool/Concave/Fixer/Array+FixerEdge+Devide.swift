@@ -10,8 +10,8 @@ import iFixFloat
 private struct EdgeDivideResult {
     let leftPart: FixerEdge
     let rightPart: FixerEdge
-    let removeEvent: FixerEvent
-    let addEvent: FixerEvent
+    let removeEvent: SwipeEvent
+    let addEvent: SwipeEvent
     let isBend: Bool
 }
 
@@ -198,12 +198,12 @@ extension Array where Element == FixerEdge {
 
     #if DEBUG
         // left
-        let evRemove = FixerEvent(sort: leftPart.b.bitPack, action: .remove, edgeId: nextId, point: leftPart.b)
+        let evRemove = SwipeEvent(sort: leftPart.b.bitPack, action: .remove, edgeId: nextId, point: leftPart.b)
         // right
-        let evAdd = FixerEvent(sort: rightPart.a.bitPack, action: .add, edgeId: id, point: cross)
+        let evAdd = SwipeEvent(sort: rightPart.a.bitPack, action: .add, edgeId: id, point: cross)
     #else
-        let evRemove = FixerEvent(sort: bitPack, action: .remove, edgeId: nextId)
-        let evAdd = FixerEvent(sort: bitPack, action: .add, edgeId: id)
+        let evRemove = SwipeEvent(sort: bitPack, action: .remove, edgeId: nextId)
+        let evAdd = SwipeEvent(sort: bitPack, action: .add, edgeId: id)
     #endif
         
         let isBend = Triangle.isNotLine(p0: edge.a, p1: edge.b, p2: cross)
@@ -217,8 +217,8 @@ extension Array where Element == FixerEdge {
         )
     }
 
-    private func createEvents() -> [FixerEvent] {
-        var events = [FixerEvent]()
+    private func createEvents() -> [SwipeEvent] {
+        var events = [SwipeEvent]()
         let capacity = 2 * (count + 4)
         events.reserveCapacity(capacity)
         
@@ -227,11 +227,11 @@ extension Array where Element == FixerEdge {
             let edge = self[i]
 
     #if DEBUG
-            events.append(FixerEvent(sort: edge.b.bitPack, action: .remove, edgeId: i, point: edge.b))
-            events.append(FixerEvent(sort: edge.a.bitPack, action: .add, edgeId: i, point: edge.a))
+            events.append(SwipeEvent(sort: edge.b.bitPack, action: .remove, edgeId: i, point: edge.b))
+            events.append(SwipeEvent(sort: edge.a.bitPack, action: .add, edgeId: i, point: edge.a))
     #else
-            events.append(FixerEvent(sort: edge.b.bitPack, action: .remove, edgeId: i))
-            events.append(FixerEvent(sort: edge.a.bitPack, action: .add, edgeId: i))
+            events.append(SwipeEvent(sort: edge.b.bitPack, action: .remove, edgeId: i))
+            events.append(SwipeEvent(sort: edge.a.bitPack, action: .add, edgeId: i))
     #endif
 
         }

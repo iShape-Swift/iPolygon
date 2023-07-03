@@ -44,10 +44,9 @@ extension ConvexCrossSolver {
         var p0 = pins[0]
         result.append(p0)
         for i in 1..<pins.count {
-            var pi = pins[i]
+            let pi = pins[i]
             if p0.mA != pi.mA {
-                pi.i = result.count
-                result.append(pi)
+                result.append(Pin(i: result.count, pin: pi))
             }
             p0 = pi
         }

@@ -1,15 +1,21 @@
 //
-//  FixerEvent.swift
+//  SwipeEvent.swift
 //  
 //
-//  Created by Nail Sharipov on 13.06.2023.
+//  Created by Nail Sharipov on 23.06.2023.
 //
 
 import iFixFloat
 
 @usableFromInline
-struct FixerEvent {
+struct SwipeEvent: Comparable, Equatable {
 
+#if DEBUG
+    static let empty = SwipeEvent(sort: 0, action: .add, edgeId: -1, point: .zero)
+#else
+    static let empty = SwipeEvent(sort: 0, action: .add, edgeId: -1)
+#endif
+    
     @usableFromInline
     enum Action: Int {
         case add = 1
@@ -46,11 +52,20 @@ struct FixerEvent {
         self.edgeId = edgeId
     }
 #endif
+    
+    @usableFromInline
+    static func < (lhs: SwipeEvent, rhs: SwipeEvent) -> Bool {
+        if lhs.sort == rhs.sort {
+            return lhs.action.rawValue < rhs.action.rawValue
+        } else {
+            return lhs.sort < rhs.sort
+        }
+    }
 }
 
 
 // Binary search for reversed array
-extension Array where Element == FixerEvent {
+extension Array where Element == SwipeEvent {
 
     @inlinable
     /// Find index of first element equal original or first element bigger then original if no exact elements is present

@@ -28,9 +28,9 @@ public enum PinType {
 
 public struct Pin {
    
-    static let zero = Pin(p: .zero, mA: .zero, mB: .zero, type: .empty)
+    static let zero = Pin(p: .zero, mA: .zero, mB: .zero)
     
-    public internal (set) var i: Int = 0
+    public let i: Int
     public let p: FixVec
     public let mA: MileStone
     public let mB: MileStone
@@ -40,6 +40,22 @@ public struct Pin {
     public var a0: FixFloat = 0
     public var a1: FixFloat = 0
 #endif
+    
+    init(i: Int = 0, p: FixVec, mA: MileStone, mB: MileStone, type: PinType = .empty) {
+        self.i = i
+        self.p = p
+        self.mA = mA
+        self.mB = mB
+        self.type = type
+    }
+    
+    init(i: Int, pin: Pin) {
+        self.i = i
+        self.p = pin.p
+        self.mA = pin.mA
+        self.mB = pin.mB
+        self.type = pin.type
+    }
     
     var a: PointStone {
         .init(m: mA, p: p)

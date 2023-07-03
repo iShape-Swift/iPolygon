@@ -35,8 +35,8 @@ public extension ConvexOverlaySolver {
             let bSet = Set(bPath)
             assert(bSet.count == bPath.count)
 
-            let aArea = Self.directArea(s0: pin0.a, s1: pin1.a, points: a)
-            let bArea = Self.directArea(s0: pin0.b, s1: pin1.b, points: b)
+            let aArea = a.directArea(s0: pin0.a, s1: pin1.a)
+            let bArea = b.directArea(s0: pin0.b, s1: pin1.b)
             
             let unsafeArea = aArea - bArea
             

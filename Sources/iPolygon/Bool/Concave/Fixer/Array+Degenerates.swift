@@ -103,9 +103,9 @@ public extension Array where Element == FixVec {
 
 #if DEBUG
         var a0 = buffer[buffer.count - 1]
-        for a in buffer {
-            assert(a0 != a)
-            a0 = a
+        for p0 in buffer {
+            assert(a0 != p0)
+            a0 = p0
         }
 #endif
         return buffer

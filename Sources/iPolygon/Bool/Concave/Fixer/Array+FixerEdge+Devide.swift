@@ -15,25 +15,25 @@ private struct EdgeDivideResult {
     let isBend: Bool
 }
 
-struct DivideResult {
+struct CrossResult {
     let isBendPath: Bool
     let edges: [FixerEdge]
 }
 
 extension Array where Element == FixerEdge {
     
-    func divide() -> DivideResult {
+    func cross() -> CrossResult {
         var edges = self
         
-        var events = self.createEvents()
+        var evQueue = EventQueue(edges: edges)
         
         var scanList = [Int]()
         scanList.reserveCapacity(16)
         
         var isAnyBend = false
         
-        while !events.isEmpty {
-            let event = events.removeLast()
+        while evQueue.hasNext {
+            let event = evQueue.next()
             
             switch event.action {
             case .add:
@@ -85,19 +85,12 @@ extension Array where Element == FixerEdge {
                         
                         // insert events
                         
-                        let index = events.findIndexAnyResult(value: thisResult.removeEvent.sort)
-                        
-                        let remEvIndex0 = events.lowerBoundary(value: thisResult.removeEvent.sort, index: index)
-                        events.insert(thisResult.removeEvent, at: remEvIndex0)
-                        
-                        let remEvIndex1 = events.lowerBoundary(value: otherResult.removeEvent.sort, index: index)
-                        events.insert(otherResult.removeEvent, at: remEvIndex1)
-                        
-                        let addEvIndex0 = events.upperBoundary(value: thisResult.addEvent.sort, index: index)
-                        events.insert(thisResult.addEvent, at: addEvIndex0)
-                        
-                        let addEvIndex1 = events.upperBoundary(value: otherResult.addEvent.sort, index: index)
-                        events.insert(otherResult.addEvent, at: addEvIndex1)
+                        evQueue.add(events: [
+                            thisResult.removeEvent,
+                            otherResult.removeEvent,
+                            thisResult.addEvent,
+                            otherResult.addEvent
+                        ], at: thisResult.removeEvent.sort)
                         
                         // is cross point bend path
                         
@@ -124,13 +117,10 @@ extension Array where Element == FixerEdge {
                         
                         // insert events
                         
-                        let index = events.findIndexAnyResult(value: thisResult.removeEvent.sort)
-                        
-                        let remEvIndex = events.lowerBoundary(value: thisResult.removeEvent.sort, index: index)
-                        events.insert(thisResult.removeEvent, at: remEvIndex)
-                        
-                        let addEvIndex = events.upperBoundary(value: thisResult.addEvent.sort, index: index)
-                        events.insert(thisResult.addEvent, at: addEvIndex)
+                        evQueue.add(events: [
+                            thisResult.removeEvent,
+                            thisResult.addEvent
+                        ], at: thisResult.removeEvent.sort)
                         
                         // is cross point bend path
                         
@@ -155,13 +145,10 @@ extension Array where Element == FixerEdge {
                         
                         // insert events
                         
-                        let index = events.findIndexAnyResult(value: otherResult.removeEvent.sort)
-                        
-                        let remEvIndex = events.lowerBoundary(value: otherResult.removeEvent.sort, index: index)
-                        events.insert(otherResult.removeEvent, at: remEvIndex)
-                        
-                        let addEvIndex = events.upperBoundary(value: otherResult.addEvent.sort, index: index)
-                        events.insert(otherResult.addEvent, at: addEvIndex)
+                        evQueue.add(events: [
+                            otherResult.removeEvent,
+                            otherResult.addEvent
+                        ], at: otherResult.removeEvent.sort)
                         
                         // is cross point bend path
                         
@@ -189,7 +176,7 @@ extension Array where Element == FixerEdge {
             
         } // while
         
-        return DivideResult(isBendPath: isAnyBend, edges: edges)
+        return CrossResult(isBendPath: isAnyBend, edges: edges)
     }
     
     private func devide(edge: FixerEdge, id: Int, cross: FixVec, nextId: Int) -> EdgeDivideResult {
@@ -215,38 +202,6 @@ extension Array where Element == FixerEdge {
             addEvent: evAdd,
             isBend: isBend
         )
-    }
-
-    private func createEvents() -> [SwipeEvent] {
-        var events = [SwipeEvent]()
-        let capacity = 2 * (count + 4)
-        events.reserveCapacity(capacity)
-        
-        
-        for i in 0..<count {
-            let edge = self[i]
-
-    #if DEBUG
-            events.append(SwipeEvent(sort: edge.b.bitPack, action: .remove, edgeId: i, point: edge.b))
-            events.append(SwipeEvent(sort: edge.a.bitPack, action: .add, edgeId: i, point: edge.a))
-    #else
-            events.append(SwipeEvent(sort: edge.b.bitPack, action: .remove, edgeId: i))
-            events.append(SwipeEvent(sort: edge.a.bitPack, action: .add, edgeId: i))
-    #endif
-
-        }
-     
-        events.sort(by: {
-            if $0.sort != $1.sort {
-                return $0.sort > $1.sort
-            } else {
-                let a = $0.action.rawValue
-                let b = $1.action.rawValue
-                return a < b
-            }
-        })
-        
-        return events
     }
 
 }

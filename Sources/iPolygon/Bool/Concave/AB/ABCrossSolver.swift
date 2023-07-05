@@ -26,10 +26,28 @@ public struct ABCross {
     }
 }
 
+private struct DivideResult {
+    let ltPart: ABEdge
+    let rtPart: ABEdge
+    let remEvent: SwipeEvent
+    let addEvent: SwipeEvent
+}
 
 public struct ABCrossSolver {
     
-    public static func cross(pathA: [FixVec], pathB: [FixVec], bndA: Boundary, bndB: Boundary) -> ABCross {
+    public init() { }
+    
+    public func safeCross(pathA: [FixVec], pathB: [FixVec]) -> ABCross {
+        let cleanA = pathA.fix().maxAreaPath
+        let cleanB = pathB.fix().maxAreaPath
+        
+        let bndA = Boundary(points: cleanA)
+        let bndB = Boundary(points: cleanB)
+        
+        return self.cross(pathA: cleanA, pathB: cleanB, bndA: bndA, bndB: bndB)
+    }
+    
+    public func cross(pathA: [FixVec], pathB: [FixVec], bndA: Boundary, bndB: Boundary) -> ABCross {
         // at this time pathA and pathB must be correct!
 
         guard bndA.isCollide(bndB) else {
@@ -47,186 +65,8 @@ public struct ABCrossSolver {
         guard !bEdges.isEmpty else {
             return ABCross(layout: .apart, navigator: .empty)
         }
-
-        var edges = [ABEdge]()
-        edges.append(contentsOf: aEdges)
-        edges.append(contentsOf: bEdges)
-
-        var events = edges.events
         
-        var scanList = [Int]()
-        scanList.reserveCapacity(16)
-
-        var pins = [Pin]()
-        
-        while !events.isEmpty {
-            let event = events.removeLast()
-
-            switch event.action {
-            case .add:
-                
-                var thisId = event.edgeId
-                var thisEdge = edges[thisId]
-                var newScanId = thisId
-                
-                // try to cross with the scan list
-                var j = 0
-                while j < scanList.count {
-                    let otherId = scanList[j]
-                    let otherEdge = edges[otherId]
-                    
-                    guard otherEdge.shapeId != thisEdge.shapeId else {
-                        j += 1
-                        continue
-                    }
-                    
-                    let crossResult = thisEdge.cross(otherEdge)
-                    
-                    switch crossResult.type {
-                    case .not_cross, .end_a0_b0, .end_a0_b1, .end_a1_b0, .end_a1_b1, .same_line:
-                        // add pin
-                        j += 1
-                    case .pure:
-                        let cross = crossResult.pin.p
-                        
-                        // devide edges
-                        
-                        // for this edge
-                        // create new left part (new edge id), put 'remove' event
-                        // update right part (keep old edge id), put 'add' event
-                        
-                        let thisNewId = edges.count
-                        let thisResult = self.devide(edge: thisEdge, id: thisId, cross: cross, nextId: thisNewId)
-                        
-                        edges.append(thisResult.ltPart)
-                        thisEdge = thisResult.ltPart
-                        edges[thisId] = thisResult.rtPart    // update old edge (right part)
-                        thisId = thisNewId                      // we are now left part with new id
-
-                        newScanId = thisNewId
-                        
-                        // for other(scan) edge
-                        // create new left part (new edge id), put 'remove' event
-                        // update right part (keep old edge id), put 'add' event
-                        
-                        let otherNewId = edges.count
-                        let otherResult = self.devide(edge: otherEdge, id: otherId, cross: cross, nextId: otherNewId)
-                        
-                        edges.append(otherResult.ltPart)
-                        edges[otherId] = otherResult.rtPart
-
-                        scanList[j] = otherNewId
-                        
-                        // insert events
-
-                        let index = events.findIndexAnyResult(value: thisResult.remEvent.sort)
-                        
-                        let remEvIndex0 = events.lowerBoundary(value: thisResult.remEvent.sort, index: index)
-                        events.insert(thisResult.remEvent, at: remEvIndex0)
-
-                        let remEvIndex1 = events.lowerBoundary(value: otherResult.remEvent.sort, index: index)
-                        events.insert(otherResult.remEvent, at: remEvIndex1)
-
-                        let addEvIndex0 = events.upperBoundary(value: thisResult.addEvent.sort, index: index)
-                        events.insert(thisResult.addEvent, at: addEvIndex0)
-
-                        let addEvIndex1 = events.upperBoundary(value: otherResult.addEvent.sort, index: index)
-                        events.insert(otherResult.addEvent, at: addEvIndex1)
-
-                        j += 1
-                    case .end_b0, .end_b1:
-                        let cross = crossResult.pin.p
-                        
-                        // devide this edge
-                        
-                        // create new left part (new edge id), put 'remove' event
-                        // update right part (keep old edge id), put 'add' event
-                        
-                        let thisNewId = edges.count
-                        let thisResult = self.devide(edge: thisEdge, id: thisId, cross: cross, nextId: thisNewId)
-                        
-                        thisEdge = thisResult.ltPart
-                        edges.append(thisResult.ltPart)
-                        edges[thisId] = thisResult.rtPart    // update old edge (right part)
-                        thisId = thisNewId                      // we are now left part with new id
-                        
-                        newScanId = thisNewId
-                        
-                        let index = events.findIndexAnyResult(value: thisResult.remEvent.sort)
-                        
-                        let remEvIndex = events.lowerBoundary(value: thisResult.remEvent.sort, index: index)
-                        events.insert(thisResult.remEvent, at: remEvIndex)
-                        
-                        let addEvIndex = events.upperBoundary(value: thisResult.addEvent.sort, index: index)
-                        events.insert(thisResult.addEvent, at: addEvIndex)
-
-                        j += 1
-                    case .end_a0, .end_a1:
-                        let cross = crossResult.pin.p
-                        
-                        // devide other(scan) edge
-
-                        // create new left part (new edge id), put 'remove' event
-                        // update right part (keep old edge id), put 'add' event
-
-                        let otherNewId = edges.count
-                        let otherResult = self.devide(edge: otherEdge, id: otherId, cross: cross, nextId: otherNewId)
-                        
-                        edges.append(otherResult.ltPart)
-                        edges[otherId] = otherResult.rtPart
-                        
-                        scanList[j] = otherNewId
-                        
-                        // insert events
-
-                        let index = events.findIndexAnyResult(value: otherResult.remEvent.sort)
-                        
-                        let remEvIndex = events.lowerBoundary(value: otherResult.remEvent.sort, index: index)
-                        events.insert(otherResult.remEvent, at: remEvIndex)
-                        
-                        let addEvIndex = events.upperBoundary(value: otherResult.addEvent.sort, index: index)
-                        events.insert(otherResult.addEvent, at: addEvIndex)
-                        
-                        j += 1
-                    }
-                } // while scanList
-                
-                scanList.append(newScanId)
-
-            case .remove:
-                // scan list is sorted
-                if let index = scanList.firstIndex(of: event.edgeId) { // it must be one of the first elements
-                    scanList.remove(at: index)
-                } else {
-                    assertionFailure("impossible")
-                }
-            } // switch
-            
-            #if DEBUG
-            let set = Set(scanList)
-            assert(set.count == scanList.count)
-            #endif
-
-        } // while
-
-        if !pins.isEmpty {
-            pins.sort(by: { $0.mA < $1.mA })
-            
-            var clean = [Pin]()
-
-            var p0 = pins[0]
-            clean.append(p0)
-            for i in 1..<pins.count {
-                let pi = pins[i]
-                if p0.mA != pi.mA {
-                    clean.append(Pin(i: clean.count, pin: pi))
-                    clean.append(pi)
-                }
-                p0 = pi
-            }
-            
-            pins = clean
-        }
+        let pins = self.intersect(aEdges: aEdges, bEdges: bEdges)
         
         if pins.count == pathA.count && pathA.count == pathB.count {
             // looks like a == b
@@ -263,14 +103,177 @@ public struct ABCrossSolver {
         return ABCross(layout: .apart, navigator: eNavigator)
     }
     
-    private struct DivideResult {
-        let ltPart: ABEdge
-        let rtPart: ABEdge
-        let remEvent: SwipeEvent
-        let addEvent: SwipeEvent
+    private func intersect(aEdges: [ABEdge], bEdges: [ABEdge]) -> [Pin] {
+        var edges = [ABEdge]()
+        edges.append(contentsOf: aEdges)
+        edges.append(contentsOf: bEdges)
+
+        var evQueue = EventQueue(edges: edges)
+        
+        var scanList = [Int]()
+        scanList.reserveCapacity(16)
+
+        var pinMap = [MileStone: Pin]()
+        
+        while evQueue.hasNext {
+            
+            let event = evQueue.next()
+
+            switch event.action {
+            case .add:
+                
+                var thisId = event.edgeId
+                var thisEdge = edges[thisId]
+                var newScanId = thisId
+                
+                // try to cross with the scan list
+                var j = 0
+                while j < scanList.count {
+                    let otherId = scanList[j]
+                    let otherEdge = edges[otherId]
+                    
+                    guard otherEdge.shapeId != thisEdge.shapeId else {
+                        j += 1
+                        continue
+                    }
+                    
+                    let crossResult = thisEdge.cross(otherEdge)
+                    
+                    switch crossResult.type {
+                    case .not_cross:
+                        j += 1
+                    case .common_end:
+                        // add pin
+                        pinMap[crossResult.pin.mA] = crossResult.pin
+                        j += 1
+                    case .pure:
+                        let cross = crossResult.pin.p
+                        
+                        pinMap[crossResult.pin.mA] = crossResult.pin
+                        
+                        // devide edges
+                        
+                        // for this edge
+                        // create new left part (new edge id), put 'remove' event
+                        // update right part (keep old edge id), put 'add' event
+                        
+                        let thisNewId = edges.count
+                        let thisResult = self.devide(edge: thisEdge, id: thisId, cross: cross, nextId: thisNewId)
+                        
+                        edges.append(thisResult.ltPart)
+                        thisEdge = thisResult.ltPart
+                        edges[thisId] = thisResult.rtPart    // update old edge (right part)
+                        thisId = thisNewId                      // we are now left part with new id
+
+                        newScanId = thisNewId
+                        
+                        // for other(scan) edge
+                        // create new left part (new edge id), put 'remove' event
+                        // update right part (keep old edge id), put 'add' event
+                        
+                        let otherNewId = edges.count
+                        let otherResult = self.devide(edge: otherEdge, id: otherId, cross: cross, nextId: otherNewId)
+                        
+                        edges.append(otherResult.ltPart)
+                        edges[otherId] = otherResult.rtPart
+
+                        scanList[j] = otherNewId
+                        
+                        // insert events
+
+                        evQueue.add(events: [
+                            thisResult.remEvent,
+                            otherResult.remEvent,
+                            thisResult.addEvent,
+                            otherResult.addEvent
+                        ], at: thisResult.remEvent.sort)
+
+                        j += 1
+                    case .end_b:
+                        let cross = crossResult.pin.p
+                        
+                        pinMap[crossResult.pin.mA] = crossResult.pin
+                        
+                        // devide this edge
+                        
+                        // create new left part (new edge id), put 'remove' event
+                        // update right part (keep old edge id), put 'add' event
+                        
+                        let thisNewId = edges.count
+                        let thisResult = self.devide(edge: thisEdge, id: thisId, cross: cross, nextId: thisNewId)
+                        
+                        thisEdge = thisResult.ltPart
+                        edges.append(thisResult.ltPart)
+                        edges[thisId] = thisResult.rtPart    // update old edge (right part)
+                        thisId = thisNewId                      // we are now left part with new id
+                        
+                        newScanId = thisNewId
+                        
+                        evQueue.add(events: [
+                            thisResult.remEvent,
+                            thisResult.addEvent,
+                        ], at: thisResult.remEvent.sort)
+
+                        j += 1
+                    case .end_a:
+                        let cross = crossResult.pin.p
+                        
+                        pinMap[crossResult.pin.mA] = crossResult.pin
+                        
+                        // devide other(scan) edge
+
+                        // create new left part (new edge id), put 'remove' event
+                        // update right part (keep old edge id), put 'add' event
+
+                        let otherNewId = edges.count
+                        let otherResult = self.devide(edge: otherEdge, id: otherId, cross: cross, nextId: otherNewId)
+                        
+                        edges.append(otherResult.ltPart)
+                        edges[otherId] = otherResult.rtPart
+                        
+                        scanList[j] = otherNewId
+                        
+                        // insert events
+
+                        evQueue.add(events: [
+                            otherResult.remEvent,
+                            otherResult.addEvent
+                        ], at: otherResult.remEvent.sort)
+
+                        j += 1
+                    }
+                } // while scanList
+                
+                scanList.append(newScanId)
+
+            case .remove:
+                // scan list is sorted
+                if let index = scanList.firstIndex(of: event.edgeId) { // it must be one of the first elements
+                    scanList.remove(at: index)
+                } else {
+                    assertionFailure("impossible")
+                }
+            } // switch
+            
+            #if DEBUG
+            let set = Set(scanList)
+            assert(set.count == scanList.count)
+            #endif
+
+        } // while
+        
+        var pins = pinMap.map({ $0.value })
+        
+        guard pinMap.count > 1 else {
+            return pins
+        }
+
+        pins.sort(by: { $0.mA < $1.mA })
+
+        return pins
     }
     
-    static private func devide(edge: ABEdge, id: Int, cross: FixVec, nextId: Int) -> DivideResult {
+    private func devide(edge: ABEdge, id: Int, cross: FixVec, nextId: Int) -> DivideResult {
         let ltPart = ABEdge(parent: edge, e0: edge.e0, e1: cross)
         let rtPart = ABEdge(parent: edge, e0: cross, e1: edge.e1)
 
@@ -292,32 +295,6 @@ public struct ABCrossSolver {
             remEvent: evRem,
             addEvent: evAdd
         )
-    }
-}
-
-
-private extension Array where Element == ABEdge {
-
-    var events: [SwipeEvent] {
-        var result = [SwipeEvent]()
-        let capacity = 2 * (count + 4)
-        result.reserveCapacity(capacity)
-        
-        for i in 0..<count {
-            let edge = self[i]
-            
-#if DEBUG
-            result.append(SwipeEvent(sort: edge.e1.bitPack, action: .remove, edgeId: i, point: edge.e1))
-            result.append(SwipeEvent(sort: edge.e0.bitPack, action: .add, edgeId: i, point: edge.e0))
-#else
-            result.append(SwipeEvent(sort: edge.e1.bitPack, action: .remove, edgeId: i))
-            result.append(SwipeEvent(sort: edge.e0.bitPack, action: .add, edgeId: i))
-#endif
-        }
-     
-        result.sort {$0 > $1}
-        
-        return result
     }
 }
 

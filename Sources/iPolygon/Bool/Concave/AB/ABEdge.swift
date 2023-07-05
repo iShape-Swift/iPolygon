@@ -22,15 +22,6 @@ struct ABEdge {
     
     let isDirect: Bool
 
-//    init(shapeId: Int, start: FixVec, end: FixVec, p0: IndexPoint, p1: IndexPoint) {
-//        self.shapeId = shapeId
-//        self.st = start
-//        self.ed = end
-//        self.p0 = p0
-//        self.p1 = p1
-//        self.isDirect = true
-//    }
-//
     init(parent: ABEdge, e0: FixVec, e1: FixVec) {
         self.shapeId = parent.shapeId
         self.e0 = e0
@@ -39,20 +30,7 @@ struct ABEdge {
         self.p1 = parent.p1
         self.isDirect = parent.isDirect
     }
-//
-//    init(parent: ABEdge, a: FixVec, b: FixVec) {
-//        if a.bitPack < b.bitPack {
-//            self.st = a
-//            self.ed = b
-//        } else {
-//            self.st = b
-//            self.ed = a
-//        }
-//        self.shapeId = parent.shapeId
-//        self.p0 = parent.p0
-//        self.p1 = parent.p1
-//    }
-    
+
     init(shapeId: Int, a: IndexPoint, b: IndexPoint) {
         isDirect = a.point.bitPack < b.point.bitPack
         if isDirect {
@@ -87,19 +65,13 @@ struct ABEdge {
     
     @usableFromInline
     enum CrossType {
-        case not_cross          // no intersections
+        case not_cross          // no intersections or parallel
         case pure               // simple intersection with no overlaps or common points
-        case same_line          // same line
         
-        case end_a0
-        case end_a1
-        case end_b0
-        case end_b1
-        case end_a0_b0
-        case end_a0_b1
-        case end_a1_b0
-        case end_a1_b1
+        case end_a
+        case end_b
         
+        case common_end
     }
     
     @inlinable
@@ -129,164 +101,75 @@ struct ABEdge {
         let d2 = Triangle.clockDirection(p0: a0, p1: a1, p2: b0)
         let d3 = Triangle.clockDirection(p0: a0, p1: a1, p2: b1)
 
+        var p: FixVec = .zero
+        var type: CrossType = .not_cross
+        
         if d0 == 0 || d1 == 0 || d2 == 0 || d3 == 0 {
             if d0 == 0 && d1 == 0 && d2 == 0 && d3 == 0 {
-                return .init(type: .same_line, pin: .zero)
+                // same line
+                return .init(type: .not_cross, pin: .zero)
             }
+            
             if d0 == 0 {
+                p = a0
                 if d2 == 0 || d3 == 0 {
-                    if d2 == 0 {
-                        return CrossResult(
-                            type: .end_a0_b0,
-                            pin: Pin(
-                                p: a0,
-                                mA: p0.mileStone,
-                                mB: other.p0.mileStone
-                            )
-                        )
-                    } else {
-                        return CrossResult(
-                            type: .end_a0_b1,
-                            pin: Pin(
-                                p: a0,
-                                mA: p0.mileStone,
-                                mB: other.p1.mileStone
-                            )
-                        )
-                    }
+                    type = .common_end
                 } else if d2 != d3 {
-                    return CrossResult(
-                        type: .end_a0,
-                        pin: Pin(
-                            p: a0,
-                            mA: p0.mileStone,
-                            mB: other.p0.mileStone(point: a0)
-                        )
-                    )
+                    type = .end_a
                 } else {
                     return CrossResult(type: .not_cross, pin: .zero)
                 }
             }
+            
             if d1 == 0 {
+                p = a1
                 if d2 == 0 || d3 == 0 {
-                    if d2 == 0 {
-                        return CrossResult(
-                            type: .end_a1_b0,
-                            pin: Pin(
-                                p: a1,
-                                mA: p1.mileStone,
-                                mB: other.p0.mileStone
-                            )
-                        )
-                    } else {
-                        return CrossResult(
-                            type: .end_a1_b1,
-                            pin: Pin(
-                                p: a1,
-                                mA: p1.mileStone,
-                                mB: other.p1.mileStone
-                            )
-                        )
-                    }
+                    type = .common_end
                 } else if d2 != d3 {
-                    return CrossResult(
-                        type: .end_a1,
-                        pin: Pin(
-                            p: a1,
-                            mA: p1.mileStone,
-                            mB: other.p0.mileStone(point: a1)
-                        )
-                    )
+                    type = .end_a
                 } else {
                     return CrossResult(type: .not_cross, pin: .zero)
                 }
             }
+            
             if d0 != d1 {
                 if d2 == 0 {
-                    return CrossResult(
-                        type: .end_b0,
-                        pin: Pin(
-                            p: b0,
-                            mA: p0.mileStone(point: b0),
-                            mB: other.p0.mileStone
-                        )
-                    )
+                    p = b0
                 } else {
-                    return CrossResult(
-                        type: .end_b1,
-                        pin: Pin(
-                            p: b1,
-                            mA: p0.mileStone(point: b1),
-                            mB: other.p1.mileStone
-                        )
-                    )
+                    p = b1
                 }
+                type = .end_b
             } else {
                 return CrossResult(type: .not_cross, pin: .zero)
             }
         } else if d0 != d1 && d2 != d3 {
-            let cross = self.crossPoint(a0: a0, a1: a1, b0: b0, b1: b1)
+            p = self.crossPoint(a0: a0, a1: a1, b0: b0, b1: b1)
 
-            // still can be ends (watch case union 44)
-            let isA0 = a0 == cross
-            let isA1 = a1 == cross
-            let isB0 = b0 == cross
-            let isB1 = b1 == cross
-            
-            let mA: MileStone
-            let mB: MileStone
-            
-            let type: CrossType
+            // still can be ends
+            let isA0 = a0 == p
+            let isA1 = a1 == p
+            let isB0 = b0 == p
+            let isB1 = b1 == p
             
             if !(isA0 || isA1 || isB0 || isB1) {
                 type = .pure
-                mA = p0.mileStone(point: cross)
-                mB = other.p0.mileStone(point: cross)
-            } else if isA0 && isB0 {
-                type = .end_a0_b0
-                mA = p0.mileStone
-                mB = other.p0.mileStone
-            } else if isA0 && isB1 {
-                type = .end_a0_b1
-                mA = p0.mileStone
-                mB = other.p1.mileStone
-            } else if isA1 && isB0 {
-                type = .end_a1_b0
-                mA = p1.mileStone
-                mB = other.p0.mileStone
-            } else if isA1 && isB1 {
-                type = .end_a1_b1
-                mA = p1.mileStone
-                mB = other.p1.mileStone
-            } else if isA0 {
-                type = .end_a0
-                mA = p0.mileStone
-                mB = other.p0.mileStone(point: cross)
-            } else if isA1 {
-                type = .end_a1
-                mA = p1.mileStone
-                mB = other.p0.mileStone(point: cross)
-            } else if isB0 {
-                type = .end_b0
-                mA = p0.mileStone(point: cross)
-                mB = other.p0.mileStone
-            } else {
-                type = .end_b1
-                mA = p0.mileStone(point: cross)
-                mB = other.p1.mileStone
+            } else if isA0 && isB0 || isA0 && isB1 || isA1 && isB0 || isA1 && isB1 {
+                type = .common_end
+            } else if isA0 || isA1 {
+                type = .end_a
+            } else if isB0 || isB1 {
+                type = .end_b
             }
-            
-            return CrossResult(
-                type: type,
-                pin: Pin(
-                    p: cross,
-                    mA: mA,
-                    mB: mB
-                )
-            )
         } else {
             return CrossResult(type: .not_cross, pin: .zero)
         }
+        
+        let mA = MileStone(p: p, p0: p0, p1: p1)
+        let mB = MileStone(p: p, p0: other.p0, p1: other.p1)
+        
+        let pin = Pin(p: p, mA: mA, mB: mB)
+        
+        return CrossResult(type: type, pin: pin)
     }
     
     @inlinable
@@ -309,5 +192,17 @@ struct ABEdge {
         
         return FixVec(cx, cy)
     }
+}
+
+private extension MileStone {
     
+    init(p: FixVec, p0: IndexPoint, p1: IndexPoint) {
+        if p == p1.point {
+            self = .init(index: p1.index)
+        } else if p == p0.point {
+            self = .init(index: p0.index)
+        } else {
+            self = .init(index: p0.index, offset: p.sqrDistance(p0.point))
+        }
+    }
 }

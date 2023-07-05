@@ -20,13 +20,13 @@ public extension Array where Element == FixVec {
         
         var isModified = true
         repeat {
-            let result = edges.divide()
+            let result = edges.cross()
             edges = result.edges
             isModified = result.isBendPath
             count += 1
         } while isModified
         
-        debugPrint("divide count: \(count)")
+//        debugPrint("divide count: \(count)")
         
         guard edges.count != clean.count else { return [clean] }
         

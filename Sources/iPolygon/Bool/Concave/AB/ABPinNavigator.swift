@@ -122,6 +122,4 @@ public struct ABPinNavigator {
         
         self.pins = rPins
     }
-    
-    
 }

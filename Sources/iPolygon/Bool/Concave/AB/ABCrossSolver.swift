@@ -50,6 +50,13 @@ public struct ABCrossSolver {
     public func cross(pathA: [FixVec], pathB: [FixVec], bndA: Boundary, bndB: Boundary) -> ABCross {
         // at this time pathA and pathB must be correct!
 
+        if bndA == bndB && pathA.count == pathB.count {
+            // looks like a == b
+            if pathA.isEqual(pathB) {
+                return ABCross(layout: .aEqB, navigator: .empty)
+            }
+        }
+        
         guard bndA.isCollide(bndB) else {
             return ABCross(layout: .apart, navigator: .empty)
         }
@@ -67,13 +74,6 @@ public struct ABCrossSolver {
         }
         
         let pins = self.intersect(aEdges: aEdges, bEdges: bEdges)
-        
-        if pins.count == pathA.count && pathA.count == pathB.count {
-            // looks like a == b
-            if pathA.isEqual(pathB) {
-                return ABCross(layout: .aEqB, navigator: .empty)
-            }
-        }
 
         guard pins.count < 2 else {
             return ABCross(layout: .overlap, navigator: ABPinNavigator(pathA: pathA, pathB: pathB, pins: pins))
@@ -113,7 +113,7 @@ public struct ABCrossSolver {
         var scanList = [Int]()
         scanList.reserveCapacity(16)
 
-        var pinMap = [MileStone: Pin]()
+        var pins = [Pin]()
         
         while evQueue.hasNext {
             
@@ -137,19 +137,19 @@ public struct ABCrossSolver {
                         continue
                     }
                     
-                    let crossResult = thisEdge.cross(otherEdge)
+                    let cr = thisEdge.cross(otherEdge)
                     
-                    switch crossResult.type {
+                    switch cr.type {
                     case .not_cross:
                         j += 1
                     case .common_end:
-                        // add pin
-                        pinMap[crossResult.pin.mA] = crossResult.pin
+                        pins.appendUniq(e0: thisEdge, e1: otherEdge, p: cr.point)
+                        
                         j += 1
                     case .pure:
-                        let cross = crossResult.pin.p
+                        let cross = cr.point
                         
-                        pinMap[crossResult.pin.mA] = crossResult.pin
+                        pins.appendUniq(e0: thisEdge, e1: otherEdge, p: cr.point)
                         
                         // devide edges
                         
@@ -190,9 +190,9 @@ public struct ABCrossSolver {
 
                         j += 1
                     case .end_b:
-                        let cross = crossResult.pin.p
+                        let cross = cr.point
                         
-                        pinMap[crossResult.pin.mA] = crossResult.pin
+                        pins.appendUniq(e0: thisEdge, e1: otherEdge, p: cr.point)
                         
                         // devide this edge
                         
@@ -216,9 +216,9 @@ public struct ABCrossSolver {
 
                         j += 1
                     case .end_a:
-                        let cross = crossResult.pin.p
+                        let cross = cr.point
                         
-                        pinMap[crossResult.pin.mA] = crossResult.pin
+                        pins.appendUniq(e0: thisEdge, e1: otherEdge, p: cr.point)
                         
                         // devide other(scan) edge
 
@@ -262,13 +262,12 @@ public struct ABCrossSolver {
 
         } // while
         
-        var pins = pinMap.map({ $0.value })
-        
-        guard pinMap.count > 1 else {
-            return pins
+        if !pins.isEmpty {
+            pins.sort(by: { $0.mA < $1.mA })
+            for i in 0..<pins.count {
+                pins[i] = Pin(i: i, pin: pins[i])
+            }
         }
-
-        pins.sort(by: { $0.mA < $1.mA })
 
         return pins
     }
@@ -329,4 +328,34 @@ private extension Array where Element == FixVec {
             return self[1]
         }
     }
+}
+
+private extension Pin {
+    
+    init(e0: ABEdge, e1: ABEdge, p: FixVec) {
+        i = 0
+        self.p = p
+        if e0.shapeId == 0 {
+            mA = e0.miliStone(p)
+            mB = e1.miliStone(p)
+        } else {
+            mB = e0.miliStone(p)
+            mA = e1.miliStone(p)
+        }
+    }
+    
+}
+
+private extension Array where Element == Pin {
+    
+    mutating func appendUniq(e0: ABEdge, e1: ABEdge, p: FixVec) {
+        for pin in self {
+            if pin.p == p {
+                return
+            }
+        }
+        
+        self.append(Pin(e0: e0, e1: e1, p: p))
+    }
+    
 }

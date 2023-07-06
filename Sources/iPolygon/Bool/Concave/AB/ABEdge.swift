@@ -19,21 +19,19 @@ struct ABEdge {
     // start < end
     let e0: FixVec  // start
     let e1: FixVec  // end
-    
-    let isDirect: Bool
 
+    @inlinable
     init(parent: ABEdge, e0: FixVec, e1: FixVec) {
         self.shapeId = parent.shapeId
         self.e0 = e0
         self.e1 = e1
         self.p0 = parent.p0
         self.p1 = parent.p1
-        self.isDirect = parent.isDirect
     }
 
+    @inlinable
     init(shapeId: Int, a: IndexPoint, b: IndexPoint) {
-        isDirect = a.point.bitPack < b.point.bitPack
-        if isDirect {
+        if a.point.bitPack < b.point.bitPack {
             self.p0 = a
             self.p1 = b
             self.e0 = a.point
@@ -49,17 +47,17 @@ struct ABEdge {
 
     @usableFromInline
     struct CrossResult {
-        
+
         @usableFromInline
         let type: CrossType
         
         @usableFromInline
-        let pin: Pin
+        let point: FixVec
         
         @inlinable
-        init(type: CrossType, pin: Pin) {
+        init(type: CrossType, point: FixVec) {
             self.type = type
-            self.pin = pin
+            self.point = point
         }
     }
     
@@ -76,25 +74,11 @@ struct ABEdge {
     
     @inlinable
     func cross(_ other: ABEdge) -> CrossResult {
-        let a0: FixVec
-        let a1: FixVec
-        if self.isDirect {
-            a0 = e0
-            a1 = e1
-        } else {
-            a0 = e1
-            a1 = e0
-        }
+        let a0 = e0
+        let a1 = e1
 
-        let b0: FixVec
-        let b1: FixVec
-        if self.isDirect {
-            b0 = other.e0
-            b1 = other.e1
-        } else {
-            b0 = other.e1
-            b1 = other.e0
-        }
+        let b0 = other.e0
+        let b1 = other.e1
         
         let d0 = Triangle.clockDirection(p0: a0, p1: b0, p2: b1)
         let d1 = Triangle.clockDirection(p0: a1, p1: b0, p2: b1)
@@ -105,42 +89,29 @@ struct ABEdge {
         var type: CrossType = .not_cross
         
         if d0 == 0 || d1 == 0 || d2 == 0 || d3 == 0 {
-            if d0 == 0 && d1 == 0 && d2 == 0 && d3 == 0 {
-                // same line
-                return .init(type: .not_cross, pin: .zero)
-            }
-            
-            if d0 == 0 {
-                p = a0
-                if d2 == 0 || d3 == 0 {
-                    type = .common_end
-                } else if d2 != d3 {
-                    type = .end_a
-                } else {
-                    return CrossResult(type: .not_cross, pin: .zero)
+            if !(d0 == 0 && d1 == 0 && d2 == 0 && d3 == 0) {
+                if d0 == 0 {
+                    p = a0
+                    if d2 == 0 || d3 == 0 {
+                        type = .common_end
+                    } else if d2 != d3 {
+                        type = .end_a
+                    }
+                } else if d1 == 0 {
+                    p = a1
+                    if d2 == 0 || d3 == 0 {
+                        type = .common_end
+                    } else if d2 != d3 {
+                        type = .end_a
+                    }
+                } else if d0 != d1 {
+                    if d2 == 0 {
+                        p = b0
+                    } else {
+                        p = b1
+                    }
+                    type = .end_b
                 }
-            }
-            
-            if d1 == 0 {
-                p = a1
-                if d2 == 0 || d3 == 0 {
-                    type = .common_end
-                } else if d2 != d3 {
-                    type = .end_a
-                } else {
-                    return CrossResult(type: .not_cross, pin: .zero)
-                }
-            }
-            
-            if d0 != d1 {
-                if d2 == 0 {
-                    p = b0
-                } else {
-                    p = b1
-                }
-                type = .end_b
-            } else {
-                return CrossResult(type: .not_cross, pin: .zero)
             }
         } else if d0 != d1 && d2 != d3 {
             p = self.crossPoint(a0: a0, a1: a1, b0: b0, b1: b1)
@@ -160,16 +131,9 @@ struct ABEdge {
             } else if isB0 || isB1 {
                 type = .end_b
             }
-        } else {
-            return CrossResult(type: .not_cross, pin: .zero)
         }
-        
-        let mA = MileStone(p: p, p0: p0, p1: p1)
-        let mB = MileStone(p: p, p0: other.p0, p1: other.p1)
-        
-        let pin = Pin(p: p, mA: mA, mB: mB)
-        
-        return CrossResult(type: type, pin: pin)
+
+        return CrossResult(type: type, point: p)
     }
     
     @inlinable
@@ -192,17 +156,16 @@ struct ABEdge {
         
         return FixVec(cx, cy)
     }
-}
 
-private extension MileStone {
-    
-    init(p: FixVec, p0: IndexPoint, p1: IndexPoint) {
+    @inlinable
+    func miliStone(_ p: FixVec) -> MileStone {
         if p == p1.point {
-            self = .init(index: p1.index)
+            return MileStone(index: p1.index)
         } else if p == p0.point {
-            self = .init(index: p0.index)
+            return MileStone(index: p0.index)
         } else {
-            self = .init(index: p0.index, offset: p.sqrDistance(p0.point))
+            return MileStone(index: p0.index, offset: p.sqrDistance(p0.point))
         }
     }
+
 }

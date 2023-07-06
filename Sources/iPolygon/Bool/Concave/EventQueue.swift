@@ -70,12 +70,12 @@ struct EventQueue {
         let index = events.findIndexAnyResult(value: sort)
 
         for event in newEvents where event.action == .add {
-            let i = events.lowerBoundary(value: event.sort, index: index)
+            let i = events.firstIndex(value: event.sort, index: index)
             events.insert(event, at: i)
         }
         
         for event in newEvents where event.action == .remove {
-            let i = events.upperBoundary(value: event.sort, index: index)
+            let i = events.lastIndex(value: event.sort, index: index)
             events.insert(event, at: i)
         }
     }
@@ -90,7 +90,7 @@ extension Array where Element == SwipeEvent {
     ///   - value: original element
     ///   - start: from where to start (mostly it's index of a)
     /// - Returns: index of lower boundary
-    func lowerBoundary(value a: Int64, index: Int) -> Int {
+    func firstIndex(value a: Int64, index: Int) -> Int {
         let last = count - 1
         var i = index
         if i > last {
@@ -123,7 +123,7 @@ extension Array where Element == SwipeEvent {
     ///   - value: original element
     ///   - start: from where to start (mostly it's index of a)
     /// - Returns: index of upper boundary
-    func upperBoundary(value a: Int64, index: Int) -> Int {
+    func lastIndex(value a: Int64, index: Int) -> Int {
         let last = count - 1
         var i = index
         if i > last {

@@ -21,10 +21,10 @@ struct ABEdge {
     let e1: FixVec  // end
 
     @inlinable
-    init(id: Int, parent: ABEdge, e0: FixVec, e1: FixVec) {
-        self.id = id
+    init(parent: ABEdge, e0: FixVec, e1: FixVec) {
         self.e0 = e0
         self.e1 = e1
+        self.id = parent.id
         self.p0 = parent.p0
         self.p1 = parent.p1
     }

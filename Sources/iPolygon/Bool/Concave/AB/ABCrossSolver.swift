@@ -7,6 +7,13 @@
 
 import iFixFloat
 
+private typealias ShapeId = Int
+
+private extension ShapeId {
+    static let a = 0
+    static let b = 1
+}
+
 public enum ABLayout {
     case overlap
     case aInB
@@ -24,11 +31,6 @@ public struct ABCross {
         self.layout = layout
         self.navigator = navigator
     }
-}
-
-private struct DivideResult {
-    let ltPart: ABEdge
-    let rtPart: ABEdge
 }
 
 public struct ABCrossSolver {
@@ -59,13 +61,13 @@ public struct ABCrossSolver {
             return ABCross(layout: .apart, navigator: .empty)
         }
 
-        let aEdges = pathA.filterEdges(startIndex: 0, shapeId: .a, bnd: bndB)
+        let aEdges = pathA.filterEdges(shapeId: ShapeId.a, bnd: bndB)
 
         guard !aEdges.isEmpty else {
             return ABCross(layout: .apart, navigator: .empty)
         }
         
-        let bEdges = pathB.filterEdges(startIndex: aEdges.count, shapeId: .b, bnd: bndA)
+        let bEdges = pathB.filterEdges(shapeId: ShapeId.b, bnd: bndA)
 
         guard !bEdges.isEmpty else {
             return ABCross(layout: .apart, navigator: .empty)
@@ -104,10 +106,12 @@ public struct ABCrossSolver {
     private func intersect(edges: [ABEdge]) -> [Pin] {
         var queue = edges.sorted(by: { $0.e0.bitPack > $1.e0.bitPack })
         
-        var idGen = ABIdGenerator(counter: edges.count)
+        var listA = [ABEdge]()
+        listA.reserveCapacity(8)
         
-        var scanBank = ABScanBank()
-
+        var listB = [ABEdge]()
+        listB.reserveCapacity(8)
+        
         var pins = [Pin]()
 
     queueLoop:
@@ -116,12 +120,19 @@ public struct ABCrossSolver {
             // get edge with the smallest e0
             let thisEdge = queue.removeLast()
             
-            let thisShapeId = thisEdge.id.shapeId
-            
-            let scanList = scanBank.scanList(shapeId: thisShapeId, filter: thisEdge.e0.bitPack)
+            let scanList: [ABEdge]
+            if thisEdge.id == ShapeId.a {
+                listB.removeAllE1(before: thisEdge.e0.bitPack)
+                scanList = listB
+            } else {
+                listA.removeAllE1(before: thisEdge.e0.bitPack)
+                scanList = listA
+            }
             
             // try to cross with the scan list
-            for scanEdge in scanList {
+            for scanIndex in 0..<scanList.count {
+                
+                let scanEdge = scanList[scanIndex]
                 
                 let cr = thisEdge.cross(scanEdge)
                 
@@ -133,67 +144,53 @@ public struct ABCrossSolver {
                 case .pure:
                     let cross = cr.point
                     
-                    pins.appendUniq(e0: thisEdge, e1: scanEdge, p: cr.point)
-                    
                     // devide edges
 
-                    let thisEdges = self.devide(
-                        edge: thisEdge,
-                        cross: cross,
-                        ltId: idGen.next(shapeId: thisShapeId),
-                        rtId: idGen.next(shapeId: thisShapeId)
-                    )
-
-                    let scanShapeId = scanEdge.id.shapeId
+                    let thisLt = ABEdge(parent: thisEdge, e0: thisEdge.e0, e1: cross)
+                    let thisRt = ABEdge(parent: thisEdge, e0: cross, e1: thisEdge.e1)
                     
-                    let scanEdges = self.devide(
-                        edge: scanEdge,
-                        cross: cross,
-                        ltId: idGen.next(shapeId: scanShapeId),
-                        rtId: idGen.next(shapeId: scanShapeId)
-                    )
+                    let scanLt = ABEdge(parent: scanEdge, e0: scanEdge.e0, e1: cross)
+                    let scanRt = ABEdge(parent: scanEdge, e0: cross, e1: scanEdge.e1)
 
-                    queue.addE0(edge: thisEdges.ltPart)
-                    queue.addE0(edge: thisEdges.rtPart)
-                    queue.addE0(edge: scanEdges.rtPart)
+                    queue.addE0(edge: thisLt)
+                    queue.addE0(edge: thisRt)
+                    queue.addE0(edge: scanRt)
 
-                    scanBank.add(edge: scanEdges.ltPart)
+                    if scanLt.id == ShapeId.a {
+                        listA[scanIndex] = scanLt
+                    } else {
+                        listB[scanIndex] = scanLt
+                    }
                     
                     continue queueLoop
                 case .end_b:
                     let cross = cr.point
+
+                    // devide this edge
                     
-                    pins.appendUniq(e0: thisEdge, e1: scanEdge, p: cr.point)
+                    let thisLt = ABEdge(parent: thisEdge, e0: thisEdge.e0, e1: cross)
+                    let thisRt = ABEdge(parent: thisEdge, e0: cross, e1: thisEdge.e1)
 
-                    let thisEdges = self.devide(
-                        edge: thisEdge,
-                        cross: cross,
-                        ltId: idGen.next(shapeId: thisShapeId),
-                        rtId: idGen.next(shapeId: thisShapeId)
-                    )
-
-                    queue.addE0(edge: thisEdges.ltPart)
-                    queue.addE0(edge: thisEdges.rtPart)
+                    queue.addE0(edge: thisLt)
+                    queue.addE0(edge: thisRt)
 
                     continue queueLoop
                 case .end_a:
                     let cross = cr.point
-                    
-                    pins.appendUniq(e0: thisEdge, e1: scanEdge, p: cr.point)
-                    
-                    // devide other(scan) edge
 
-                    let scanShapeId = scanEdge.id.shapeId
+                    // devide scan edge
                     
-                    let scanEdges = self.devide(
-                        edge: scanEdge,
-                        cross: cross,
-                        ltId: idGen.next(shapeId: scanShapeId),
-                        rtId: idGen.next(shapeId: scanShapeId)
-                    )
+                    let scanLt = ABEdge(parent: scanEdge, e0: scanEdge.e0, e1: cross)
+                    let scanRt = ABEdge(parent: scanEdge, e0: cross, e1: scanEdge.e1)
 
-                    queue.addE0(edge: scanEdges.rtPart)
-                    scanBank.add(edge: scanEdges.ltPart)
+                    queue.addE0(edge: thisEdge) // put it back!
+                    queue.addE0(edge: scanRt)
+                    
+                    if scanLt.id == ShapeId.a {
+                        listA[scanIndex] = scanLt
+                    } else {
+                        listB[scanIndex] = scanLt
+                    }
                     
                     continue queueLoop
                 }
@@ -201,9 +198,11 @@ public struct ABCrossSolver {
             } // for scanList
             
             // no intersections, add to scan
-            
-            scanBank.add(edge: thisEdge)
-
+            if thisEdge.id == ShapeId.a {
+                listA.addE0(edge: thisEdge)
+            } else {
+                listB.addE0(edge: thisEdge)
+            }
         } // while queue
         
         if !pins.isEmpty {
@@ -215,23 +214,11 @@ public struct ABCrossSolver {
 
         return pins
     }
-    
-    private func devide(edge: ABEdge, cross: FixVec, ltId: Int, rtId: Int) -> DivideResult {
-        let ltPart = ABEdge(id: ltId, parent: edge, e0: edge.e0, e1: cross)
-        let rtPart = ABEdge(id: rtId, parent: edge, e0: cross, e1: edge.e1)
-
-        return DivideResult(
-            ltPart: ltPart,
-            rtPart: rtPart
-        )
-    }
 }
 
 private extension Array where Element == FixVec {
     
-    func filterEdges(startIndex: Int, shapeId: ABShapeId, bnd: Boundary) -> [ABEdge] {
-        var idGen = ABIdGenerator(counter: startIndex)
-        
+    func filterEdges(shapeId: Int, bnd: Boundary) -> [ABEdge] {
         let last = self.count - 1
         var p0 = IndexPoint(index: last, point: self[last])
         
@@ -243,8 +230,7 @@ private extension Array where Element == FixVec {
             let eBnd = Boundary(p0: p0.point, p1: p1.point)
             
             if eBnd.isCollide(bnd) {
-                let id = idGen.next(shapeId: shapeId)
-                let e = ABEdge(id: id, a: p0, b: p1)
+                let e = ABEdge(id: shapeId, a: p0, b: p1)
                 edges.append(e)
             }
             p0 = p1
@@ -268,7 +254,7 @@ private extension Pin {
     init(e0: ABEdge, e1: ABEdge, p: FixVec) {
         i = 0
         self.p = p
-        if e0.id.shapeId == .a {
+        if e0.id == ShapeId.a {
             mA = e0.miliStone(p)
             mB = e1.miliStone(p)
         } else {

@@ -98,29 +98,4 @@ extension Array where Element == ABEdge {
         let i = self.findIndexE1(edge.e1.bitPack)
         self.insert(edge, at: i)
     }
-    
-    mutating func removeE1(edge: ABEdge) {
-        let sort = edge.e1.bitPack
-        let i0 = self.findIndexE1(sort)
-        
-        // scan backwards
-        var i = i0
-        while i >= 0 && self[i].e1.bitPack == sort {
-            if self[i].id == edge.id {
-                self.remove(at: i)
-                return
-            }
-            i -= 1
-        }
-
-        // scan forwards
-        i = i0 + 1
-        while i < count && self[i].e1.bitPack == sort {
-            if self[i].id == edge.id {
-                self.remove(at: i)
-                return
-            }
-            i += 1
-        }
-    }
 }

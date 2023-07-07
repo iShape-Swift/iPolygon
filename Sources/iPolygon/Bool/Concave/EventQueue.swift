@@ -79,6 +79,19 @@ struct EventQueue {
             events.insert(event, at: i)
         }
     }
+    
+    @inlinable
+    mutating func add(event newEvent: SwipeEvent) {
+        let index = events.findIndexAnyResult(value: newEvent.sort)
+
+        let i: Int
+        if newEvent.action == .add {
+            i = events.firstIndex(value: newEvent.sort, index: index)
+        } else {
+            i = events.lastIndex(value: newEvent.sort, index: index)
+        }
+        events.insert(newEvent, at: i)
+    }
 }
 
 // Binary search for reversed array

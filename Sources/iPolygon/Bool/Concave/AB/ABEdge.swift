@@ -9,9 +9,9 @@ import iFixFloat
 
 struct ABEdge {
 
-    static let empty = ABEdge(shapeId: -1, a: .zero, b: .zero)
+    static let empty = ABEdge(id: -1, a: .zero, b: .zero)
     
-    let shapeId: Int
+    let id: Int
     
     let p0: IndexPoint
     let p1: IndexPoint
@@ -21,8 +21,8 @@ struct ABEdge {
     let e1: FixVec  // end
 
     @inlinable
-    init(parent: ABEdge, e0: FixVec, e1: FixVec) {
-        self.shapeId = parent.shapeId
+    init(id: Int, parent: ABEdge, e0: FixVec, e1: FixVec) {
+        self.id = id
         self.e0 = e0
         self.e1 = e1
         self.p0 = parent.p0
@@ -30,7 +30,7 @@ struct ABEdge {
     }
 
     @inlinable
-    init(shapeId: Int, a: IndexPoint, b: IndexPoint) {
+    init(id: Int, a: IndexPoint, b: IndexPoint) {
         if a.point.bitPack < b.point.bitPack {
             self.p0 = a
             self.p1 = b
@@ -42,7 +42,7 @@ struct ABEdge {
             self.e1 = a.point
             self.e0 = b.point
         }
-        self.shapeId = shapeId
+        self.id = id
     }
 
     @usableFromInline

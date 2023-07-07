@@ -29,8 +29,6 @@ public struct ABCross {
 private struct DivideResult {
     let ltPart: ABEdge
     let rtPart: ABEdge
-    let remEvent: SwipeEvent
-    let addEvent: SwipeEvent
 }
 
 public struct ABCrossSolver {
@@ -61,19 +59,19 @@ public struct ABCrossSolver {
             return ABCross(layout: .apart, navigator: .empty)
         }
 
-        let aEdges = pathA.filterEdges(shapeId: 0, bnd: bndB)
+        let aEdges = pathA.filterEdges(startIndex: 0, shapeId: .a, bnd: bndB)
 
         guard !aEdges.isEmpty else {
             return ABCross(layout: .apart, navigator: .empty)
         }
-
-        let bEdges = pathB.filterEdges(shapeId: 1, bnd: bndA)
+        
+        let bEdges = pathB.filterEdges(startIndex: aEdges.count, shapeId: .b, bnd: bndA)
 
         guard !bEdges.isEmpty else {
             return ABCross(layout: .apart, navigator: .empty)
         }
         
-        let pins = self.intersect(aEdges: aEdges, bEdges: bEdges)
+        let pins = self.intersect(edges: aEdges + bEdges)
 
         guard pins.count < 2 else {
             return ABCross(layout: .overlap, navigator: ABPinNavigator(pathA: pathA, pathB: pathB, pins: pins))
@@ -103,164 +101,110 @@ public struct ABCrossSolver {
         return ABCross(layout: .apart, navigator: eNavigator)
     }
     
-    private func intersect(aEdges: [ABEdge], bEdges: [ABEdge]) -> [Pin] {
-        var edges = [ABEdge]()
-        edges.append(contentsOf: aEdges)
-        edges.append(contentsOf: bEdges)
-
-        var evQueue = EventQueue(edges: edges)
+    private func intersect(edges: [ABEdge]) -> [Pin] {
+        var queue = edges.sorted(by: { $0.e0.bitPack > $1.e0.bitPack })
         
-        var scanList = [Int]()
-        scanList.reserveCapacity(16)
+        var idGen = ABIdGenerator(counter: edges.count)
+        
+        var scanBank = ABScanBank()
 
         var pins = [Pin]()
-        
-        while evQueue.hasNext {
+
+    queueLoop:
+        while !queue.isEmpty {
             
-            let event = evQueue.next()
-
-            switch event.action {
-            case .add:
+            // get edge with the smallest e0
+            let thisEdge = queue.removeLast()
+            
+            let thisShapeId = thisEdge.id.shapeId
+            
+            let scanList = scanBank.scanList(shapeId: thisShapeId, filter: thisEdge.e0.bitPack)
+            
+            // try to cross with the scan list
+            for scanEdge in scanList {
                 
-                var thisId = event.edgeId
-                var thisEdge = edges[thisId]
-                var newScanId = thisId
+                let cr = thisEdge.cross(scanEdge)
                 
-                // try to cross with the scan list
-                var j = 0
-                while j < scanList.count {
-                    let otherId = scanList[j]
-                    let otherEdge = edges[otherId]
+                switch cr.type {
+                case .not_cross:
+                    break
+                case .common_end:
+                    pins.appendUniq(e0: thisEdge, e1: scanEdge, p: cr.point)
+                case .pure:
+                    let cross = cr.point
                     
-                    guard otherEdge.shapeId != thisEdge.shapeId else {
-                        j += 1
-                        continue
-                    }
+                    pins.appendUniq(e0: thisEdge, e1: scanEdge, p: cr.point)
                     
-                    let cr = thisEdge.cross(otherEdge)
+                    // devide edges
+
+                    let thisEdges = self.devide(
+                        edge: thisEdge,
+                        cross: cross,
+                        ltId: idGen.next(shapeId: thisShapeId),
+                        rtId: idGen.next(shapeId: thisShapeId)
+                    )
+
+                    let scanShapeId = scanEdge.id.shapeId
                     
-                    switch cr.type {
-                    case .not_cross:
-                        j += 1
-                    case .common_end:
-                        pins.appendUniq(e0: thisEdge, e1: otherEdge, p: cr.point)
-                        
-                        j += 1
-                    case .pure:
-                        let cross = cr.point
-                        
-                        pins.appendUniq(e0: thisEdge, e1: otherEdge, p: cr.point)
-                        
-                        // devide edges
-                        
-                        // for this edge
-                        // create new left part (new edge id), put 'remove' event
-                        // update right part (keep old edge id), put 'add' event
-                        
-                        let thisNewId = edges.count
-                        let thisResult = self.devide(edge: thisEdge, id: thisId, cross: cross, nextId: thisNewId)
-                        
-                        edges.append(thisResult.ltPart)
-                        thisEdge = thisResult.ltPart
-                        edges[thisId] = thisResult.rtPart    // update old edge (right part)
-                        thisId = thisNewId                      // we are now left part with new id
+                    let scanEdges = self.devide(
+                        edge: scanEdge,
+                        cross: cross,
+                        ltId: idGen.next(shapeId: scanShapeId),
+                        rtId: idGen.next(shapeId: scanShapeId)
+                    )
 
-                        newScanId = thisNewId
-                        
-                        // for other(scan) edge
-                        // create new left part (new edge id), put 'remove' event
-                        // update right part (keep old edge id), put 'add' event
-                        
-                        let otherNewId = edges.count
-                        let otherResult = self.devide(edge: otherEdge, id: otherId, cross: cross, nextId: otherNewId)
-                        
-                        edges.append(otherResult.ltPart)
-                        edges[otherId] = otherResult.rtPart
+                    queue.addE0(edge: thisEdges.ltPart)
+                    queue.addE0(edge: thisEdges.rtPart)
+                    queue.addE0(edge: scanEdges.rtPart)
 
-                        scanList[j] = otherNewId
-                        
-                        // insert events
+                    scanBank.add(edge: scanEdges.ltPart)
+                    
+                    continue queueLoop
+                case .end_b:
+                    let cross = cr.point
+                    
+                    pins.appendUniq(e0: thisEdge, e1: scanEdge, p: cr.point)
 
-                        evQueue.add(events: [
-                            thisResult.remEvent,
-                            otherResult.remEvent,
-                            thisResult.addEvent,
-                            otherResult.addEvent
-                        ], at: thisResult.remEvent.sort)
+                    let thisEdges = self.devide(
+                        edge: thisEdge,
+                        cross: cross,
+                        ltId: idGen.next(shapeId: thisShapeId),
+                        rtId: idGen.next(shapeId: thisShapeId)
+                    )
 
-                        j += 1
-                    case .end_b:
-                        let cross = cr.point
-                        
-                        pins.appendUniq(e0: thisEdge, e1: otherEdge, p: cr.point)
-                        
-                        // devide this edge
-                        
-                        // create new left part (new edge id), put 'remove' event
-                        // update right part (keep old edge id), put 'add' event
-                        
-                        let thisNewId = edges.count
-                        let thisResult = self.devide(edge: thisEdge, id: thisId, cross: cross, nextId: thisNewId)
-                        
-                        thisEdge = thisResult.ltPart
-                        edges.append(thisResult.ltPart)
-                        edges[thisId] = thisResult.rtPart    // update old edge (right part)
-                        thisId = thisNewId                      // we are now left part with new id
-                        
-                        newScanId = thisNewId
-                        
-                        evQueue.add(events: [
-                            thisResult.remEvent,
-                            thisResult.addEvent,
-                        ], at: thisResult.remEvent.sort)
+                    queue.addE0(edge: thisEdges.ltPart)
+                    queue.addE0(edge: thisEdges.rtPart)
 
-                        j += 1
-                    case .end_a:
-                        let cross = cr.point
-                        
-                        pins.appendUniq(e0: thisEdge, e1: otherEdge, p: cr.point)
-                        
-                        // devide other(scan) edge
+                    continue queueLoop
+                case .end_a:
+                    let cross = cr.point
+                    
+                    pins.appendUniq(e0: thisEdge, e1: scanEdge, p: cr.point)
+                    
+                    // devide other(scan) edge
 
-                        // create new left part (new edge id), put 'remove' event
-                        // update right part (keep old edge id), put 'add' event
+                    let scanShapeId = scanEdge.id.shapeId
+                    
+                    let scanEdges = self.devide(
+                        edge: scanEdge,
+                        cross: cross,
+                        ltId: idGen.next(shapeId: scanShapeId),
+                        rtId: idGen.next(shapeId: scanShapeId)
+                    )
 
-                        let otherNewId = edges.count
-                        let otherResult = self.devide(edge: otherEdge, id: otherId, cross: cross, nextId: otherNewId)
-                        
-                        edges.append(otherResult.ltPart)
-                        edges[otherId] = otherResult.rtPart
-                        
-                        scanList[j] = otherNewId
-                        
-                        // insert events
-
-                        evQueue.add(events: [
-                            otherResult.remEvent,
-                            otherResult.addEvent
-                        ], at: otherResult.remEvent.sort)
-
-                        j += 1
-                    }
-                } // while scanList
-                
-                scanList.append(newScanId)
-
-            case .remove:
-                // scan list is sorted
-                if let index = scanList.firstIndex(of: event.edgeId) { // it must be one of the first elements
-                    scanList.remove(at: index)
-                } else {
-                    assertionFailure("impossible")
+                    queue.addE0(edge: scanEdges.rtPart)
+                    scanBank.add(edge: scanEdges.ltPart)
+                    
+                    continue queueLoop
                 }
-            } // switch
+                
+            } // for scanList
             
-            #if DEBUG
-            let set = Set(scanList)
-            assert(set.count == scanList.count)
-            #endif
+            // no intersections, add to scan
+            
+            scanBank.add(edge: thisEdge)
 
-        } // while
+        } // while queue
         
         if !pins.isEmpty {
             pins.sort(by: { $0.mA < $1.mA })
@@ -272,46 +216,35 @@ public struct ABCrossSolver {
         return pins
     }
     
-    private func devide(edge: ABEdge, id: Int, cross: FixVec, nextId: Int) -> DivideResult {
-        let ltPart = ABEdge(parent: edge, e0: edge.e0, e1: cross)
-        let rtPart = ABEdge(parent: edge, e0: cross, e1: edge.e1)
-
-#if DEBUG
-        // left
-        let evRem = SwipeEvent(sort: ltPart.e1.bitPack, action: .remove, edgeId: nextId, point: ltPart.e1)
-        // right
-        let evAdd = SwipeEvent(sort: rtPart.e0.bitPack, action: .add, edgeId: id, point: rtPart.e0)
-#else
-        // left
-        let evRem = SwipeEvent(sort: ltPart.e1.bitPack, action: .remove, edgeId: nextId)
-        // right
-        let evAdd = SwipeEvent(sort: rtPart.e0.bitPack, action: .add, edgeId: id)
-#endif
+    private func devide(edge: ABEdge, cross: FixVec, ltId: Int, rtId: Int) -> DivideResult {
+        let ltPart = ABEdge(id: ltId, parent: edge, e0: edge.e0, e1: cross)
+        let rtPart = ABEdge(id: rtId, parent: edge, e0: cross, e1: edge.e1)
 
         return DivideResult(
             ltPart: ltPart,
-            rtPart: rtPart,
-            remEvent: evRem,
-            addEvent: evAdd
+            rtPart: rtPart
         )
     }
 }
 
 private extension Array where Element == FixVec {
     
-    func filterEdges(shapeId: Int, bnd: Boundary) -> [ABEdge] {
+    func filterEdges(startIndex: Int, shapeId: ABShapeId, bnd: Boundary) -> [ABEdge] {
+        var idGen = ABIdGenerator(counter: startIndex)
+        
         let last = self.count - 1
         var p0 = IndexPoint(index: last, point: self[last])
         
         var edges = [ABEdge]()
-        
+
         for i in 0..<self.count {
             let p1 = IndexPoint(index: i, point: self[i])
             
             let eBnd = Boundary(p0: p0.point, p1: p1.point)
-           
+            
             if eBnd.isCollide(bnd) {
-                let e = ABEdge(shapeId: shapeId, a: p0, b: p1)
+                let id = idGen.next(shapeId: shapeId)
+                let e = ABEdge(id: id, a: p0, b: p1)
                 edges.append(e)
             }
             p0 = p1
@@ -335,7 +268,7 @@ private extension Pin {
     init(e0: ABEdge, e1: ABEdge, p: FixVec) {
         i = 0
         self.p = p
-        if e0.shapeId == 0 {
+        if e0.id.shapeId == .a {
             mA = e0.miliStone(p)
             mB = e1.miliStone(p)
         } else {

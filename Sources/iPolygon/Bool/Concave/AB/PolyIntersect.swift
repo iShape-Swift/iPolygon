@@ -11,12 +11,7 @@ struct PolyIntersect {
     
     public func intersect(pathA: [FixVec], pathB: [FixVec], bndA: Boundary, bndB: Boundary, navigator: ABPinNavigator) {
      
-        
-        
-        navigator.pins
-        
-        
-        
+
     }
     
     
@@ -25,7 +20,7 @@ struct PolyIntersect {
 
 //
 //private ABPinNavigator {
-//    
+//
 //    func first
-//    
+//
 //}

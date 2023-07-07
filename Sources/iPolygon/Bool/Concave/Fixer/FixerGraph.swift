@@ -7,7 +7,7 @@
 
 import iFixFloat
 
-private struct IdEdge {
+private struct IxEdge {
     let a: Int
     let b: Int
 }
@@ -81,13 +81,13 @@ struct FixerGraph {
         }
     }
 
-    init(edges: [FixerEdge]) {
+    init(edges: [ABEdge]) {
         let n = edges.count
         
         var pMap = [Int64: Int]()
         pMap.reserveCapacity(n)
 
-        var iEdges = [IdEdge](repeating: IdEdge(a: 0, b: 0), count: n)
+        var iEdges = [IxEdge](repeating: IxEdge(a: 0, b: 0), count: n)
         var points = [FixVec](repeating: .zero, count: n)
         
         var i = 0 // points count
@@ -98,27 +98,27 @@ struct FixerGraph {
             let a: Int
             let b: Int
             
-            if let ai = pMap[edge.a.bitPack] {
+            if let ai = pMap[edge.e0.bitPack] {
                 a = ai
                 eMap[ai] = eMap[ai] + 1
             } else {
                 a = i
-                points[i] = edge.a
-                pMap[edge.a.bitPack] = i
+                points[i] = edge.e0
+                pMap[edge.e0.bitPack] = i
                 i += 1
             }
             
-            if let bi = pMap[edge.b.bitPack] {
+            if let bi = pMap[edge.e1.bitPack] {
                 b = bi
                 eMap[bi] = eMap[bi] + 1
             } else {
                 b = i
-                points[i] = edge.b
-                pMap[edge.b.bitPack] = i
+                points[i] = edge.e1
+                pMap[edge.e1.bitPack] = i
                 i += 1
             }
            
-            iEdges[j] = IdEdge(a: a, b: b)
+            iEdges[j] = IxEdge(a: a, b: b)
             j += 1
         }
         

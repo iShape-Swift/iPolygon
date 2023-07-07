@@ -2,78 +2,59 @@
 //  ABEdge.swift
 //  
 //
-//  Created by Nail Sharipov on 23.06.2023.
+//  Created by Nail Sharipov on 13.06.2023.
 //
 
 import iFixFloat
 
+@usableFromInline
+struct EdgeCross {
+
+    @usableFromInline
+    let type: EdgeCrossType
+    
+    @usableFromInline
+    let point: FixVec
+    
+    @inlinable
+    init(type: EdgeCrossType, point: FixVec) {
+        self.type = type
+        self.point = point
+    }
+}
+
+@usableFromInline
+enum EdgeCrossType {
+    case not_cross          // no intersections or parallel
+    case pure               // simple intersection with no overlaps or common points
+    
+    case end_a
+    case end_b
+    
+    case common_end
+}
+
+@usableFromInline
 struct ABEdge {
 
-    static let empty = ABEdge(id: -1, a: .zero, b: .zero)
-    
-    let id: Int
-    
-    let p0: IndexPoint
-    let p1: IndexPoint
-    
-    // start < end
-    let e0: FixVec  // start
-    let e1: FixVec  // end
+    static let zero = ABEdge(e0: .zero, e1: .zero)
 
+    // start < end
+
+    @usableFromInline
+    let e0: FixVec  // start
+
+    @usableFromInline
+    let e1: FixVec  // end
+    
     @inlinable
-    init(parent: ABEdge, e0: FixVec, e1: FixVec) {
+    init(e0: FixVec, e1: FixVec) {
         self.e0 = e0
         self.e1 = e1
-        self.id = parent.id
-        self.p0 = parent.p0
-        self.p1 = parent.p1
-    }
-
-    @inlinable
-    init(id: Int, a: IndexPoint, b: IndexPoint) {
-        if a.point.bitPack < b.point.bitPack {
-            self.p0 = a
-            self.p1 = b
-            self.e0 = a.point
-            self.e1 = b.point
-        } else {
-            self.p0 = a
-            self.p1 = b
-            self.e1 = a.point
-            self.e0 = b.point
-        }
-        self.id = id
-    }
-
-    @usableFromInline
-    struct CrossResult {
-
-        @usableFromInline
-        let type: CrossType
-        
-        @usableFromInline
-        let point: FixVec
-        
-        @inlinable
-        init(type: CrossType, point: FixVec) {
-            self.type = type
-            self.point = point
-        }
-    }
-    
-    @usableFromInline
-    enum CrossType {
-        case not_cross          // no intersections or parallel
-        case pure               // simple intersection with no overlaps or common points
-        
-        case end_a
-        case end_b
-        
-        case common_end
     }
     
     @inlinable
-    func cross(_ other: ABEdge) -> CrossResult {
+    func cross(_ other: ABEdge) -> EdgeCross {
         let a0 = e0
         let a1 = e1
 
@@ -86,7 +67,7 @@ struct ABEdge {
         let d3 = Triangle.clockDirection(p0: a0, p1: a1, p2: b1)
 
         var p: FixVec = .zero
-        var type: CrossType = .not_cross
+        var type: EdgeCrossType = .not_cross
         
         if d0 == 0 || d1 == 0 || d2 == 0 || d3 == 0 {
             if !(d0 == 0 && d1 == 0 && d2 == 0 && d3 == 0) {
@@ -133,7 +114,7 @@ struct ABEdge {
             }
         }
 
-        return CrossResult(type: type, point: p)
+        return EdgeCross(type: type, point: p)
     }
     
     @inlinable
@@ -156,16 +137,4 @@ struct ABEdge {
         
         return FixVec(cx, cy)
     }
-
-    @inlinable
-    func miliStone(_ p: FixVec) -> MileStone {
-        if p == p1.point {
-            return MileStone(index: p1.index)
-        } else if p == p0.point {
-            return MileStone(index: p0.index)
-        } else {
-            return MileStone(index: p0.index, offset: p.sqrDistance(p0.point))
-        }
-    }
-
 }

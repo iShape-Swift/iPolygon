@@ -73,7 +73,7 @@ public struct ABCrossSolver {
             return ABCross(layout: .apart, navigator: .empty)
         }
         
-        let pins = self.intersect(edges: aEdges + bEdges)
+        let pins = (aEdges + bEdges).abCross()
 
         guard pins.count < 2 else {
             return ABCross(layout: .overlap, navigator: ABPinNavigator(pathA: pathA, pathB: pathB, pins: pins))
@@ -103,13 +103,80 @@ public struct ABCrossSolver {
         return ABCross(layout: .apart, navigator: eNavigator)
     }
     
-    private func intersect(edges: [ABEdge]) -> [Pin] {
-        var queue = edges.sorted(by: { $0.e0.bitPack > $1.e0.bitPack })
+}
+
+private extension Array where Element == FixVec {
+    
+    func filterEdges(shapeId: Int, bnd: Boundary) -> [IdEdge] {
+        let last = self.count - 1
+        var p0 = IndexPoint(index: last, point: self[last])
         
-        var listA = [ABEdge]()
+        var edges = [IdEdge]()
+
+        for i in 0..<self.count {
+            let p1 = IndexPoint(index: i, point: self[i])
+            
+            let eBnd = Boundary(p0: p0.point, p1: p1.point)
+            
+            if eBnd.isCollide(bnd) {
+                let e = IdEdge(id: shapeId, a: p0, b: p1)
+                edges.append(e)
+            }
+            p0 = p1
+        }
+        
+        return edges
+    }
+    
+    func anyPoint(exclude: FixVec) -> FixVec {
+        let a = self[0]
+        if a != exclude {
+            return a
+        } else {
+            return self[1]
+        }
+    }
+}
+
+private extension Pin {
+    
+    init(e0: IdEdge, e1: IdEdge, p: FixVec) {
+        i = 0
+        self.p = p
+        if e0.id == ShapeId.a {
+            mA = e0.miliStone(p)
+            mB = e1.miliStone(p)
+        } else {
+            mB = e0.miliStone(p)
+            mA = e1.miliStone(p)
+        }
+    }
+    
+}
+
+private extension Array where Element == Pin {
+    
+    mutating func appendUniq(e0: IdEdge, e1: IdEdge, p: FixVec) {
+        for pin in self {
+            if pin.p == p {
+                return
+            }
+        }
+        
+        self.append(Pin(e0: e0, e1: e1, p: p))
+    }
+    
+}
+
+private extension Array where Element == IdEdge {
+    
+    func abCross() -> [Pin] {
+        var queue = self.sorted(by: { $0.e0.bitPack > $1.e0.bitPack })
+        
+        var listA = [IdEdge]()
         listA.reserveCapacity(8)
         
-        var listB = [ABEdge]()
+        var listB = [IdEdge]()
         listB.reserveCapacity(8)
         
         var pins = [Pin]()
@@ -120,7 +187,7 @@ public struct ABCrossSolver {
             // get edge with the smallest e0
             let thisEdge = queue.removeLast()
             
-            let scanList: [ABEdge]
+            let scanList: [IdEdge]
             if thisEdge.id == ShapeId.a {
                 listB.removeAllE1(before: thisEdge.e0.bitPack)
                 scanList = listB
@@ -134,23 +201,23 @@ public struct ABCrossSolver {
                 
                 let scanEdge = scanList[scanIndex]
                 
-                let cr = thisEdge.cross(scanEdge)
+                let cross = thisEdge.cross(scanEdge)
                 
-                switch cr.type {
+                switch cross.type {
                 case .not_cross:
                     break
                 case .common_end:
-                    pins.appendUniq(e0: thisEdge, e1: scanEdge, p: cr.point)
+                    pins.appendUniq(e0: thisEdge, e1: scanEdge, p: cross.point)
                 case .pure:
-                    let cross = cr.point
+                    let x = cross.point
                     
                     // devide edges
 
-                    let thisLt = ABEdge(parent: thisEdge, e0: thisEdge.e0, e1: cross)
-                    let thisRt = ABEdge(parent: thisEdge, e0: cross, e1: thisEdge.e1)
+                    let thisLt = IdEdge(parent: thisEdge, e0: thisEdge.e0, e1: x)
+                    let thisRt = IdEdge(parent: thisEdge, e0: x, e1: thisEdge.e1)
                     
-                    let scanLt = ABEdge(parent: scanEdge, e0: scanEdge.e0, e1: cross)
-                    let scanRt = ABEdge(parent: scanEdge, e0: cross, e1: scanEdge.e1)
+                    let scanLt = IdEdge(parent: scanEdge, e0: scanEdge.e0, e1: x)
+                    let scanRt = IdEdge(parent: scanEdge, e0: x, e1: scanEdge.e1)
 
                     queue.addE0(edge: thisLt)
                     queue.addE0(edge: thisRt)
@@ -164,24 +231,24 @@ public struct ABCrossSolver {
                     
                     continue queueLoop
                 case .end_b:
-                    let cross = cr.point
+                    let x = cross.point
 
                     // devide this edge
                     
-                    let thisLt = ABEdge(parent: thisEdge, e0: thisEdge.e0, e1: cross)
-                    let thisRt = ABEdge(parent: thisEdge, e0: cross, e1: thisEdge.e1)
+                    let thisLt = IdEdge(parent: thisEdge, e0: thisEdge.e0, e1: x)
+                    let thisRt = IdEdge(parent: thisEdge, e0: x, e1: thisEdge.e1)
 
                     queue.addE0(edge: thisLt)
                     queue.addE0(edge: thisRt)
 
                     continue queueLoop
                 case .end_a:
-                    let cross = cr.point
+                    let x = cross.point
 
                     // devide scan edge
                     
-                    let scanLt = ABEdge(parent: scanEdge, e0: scanEdge.e0, e1: cross)
-                    let scanRt = ABEdge(parent: scanEdge, e0: cross, e1: scanEdge.e1)
+                    let scanLt = IdEdge(parent: scanEdge, e0: scanEdge.e0, e1: x)
+                    let scanRt = IdEdge(parent: scanEdge, e0: x, e1: scanEdge.e1)
 
                     queue.addE0(edge: thisEdge) // put it back!
                     queue.addE0(edge: scanRt)
@@ -213,68 +280,6 @@ public struct ABCrossSolver {
         }
 
         return pins
-    }
-}
-
-private extension Array where Element == FixVec {
-    
-    func filterEdges(shapeId: Int, bnd: Boundary) -> [ABEdge] {
-        let last = self.count - 1
-        var p0 = IndexPoint(index: last, point: self[last])
-        
-        var edges = [ABEdge]()
-
-        for i in 0..<self.count {
-            let p1 = IndexPoint(index: i, point: self[i])
-            
-            let eBnd = Boundary(p0: p0.point, p1: p1.point)
-            
-            if eBnd.isCollide(bnd) {
-                let e = ABEdge(id: shapeId, a: p0, b: p1)
-                edges.append(e)
-            }
-            p0 = p1
-        }
-        
-        return edges
-    }
-    
-    func anyPoint(exclude: FixVec) -> FixVec {
-        let a = self[0]
-        if a != exclude {
-            return a
-        } else {
-            return self[1]
-        }
-    }
-}
-
-private extension Pin {
-    
-    init(e0: ABEdge, e1: ABEdge, p: FixVec) {
-        i = 0
-        self.p = p
-        if e0.id == ShapeId.a {
-            mA = e0.miliStone(p)
-            mB = e1.miliStone(p)
-        } else {
-            mB = e0.miliStone(p)
-            mA = e1.miliStone(p)
-        }
-    }
-    
-}
-
-private extension Array where Element == Pin {
-    
-    mutating func appendUniq(e0: ABEdge, e1: ABEdge, p: FixVec) {
-        for pin in self {
-            if pin.p == p {
-                return
-            }
-        }
-        
-        self.append(Pin(e0: e0, e1: e1, p: p))
     }
     
 }

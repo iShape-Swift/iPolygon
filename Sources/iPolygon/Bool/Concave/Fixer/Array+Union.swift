@@ -1,5 +1,5 @@
 //
-//  Array+FixerEdge.swift
+//  Array+Union.swift
 //  
 //
 //  Created by Nail Sharipov on 15.06.2023.
@@ -7,7 +7,7 @@
 
 import iFixFloat
 
-extension Array where Element == FixerEdge {
+extension Array where Element == ABEdge {
     
     func union(graph: FixerGraph) -> [[FixVec]] {
         var result = [[FixVec]]()

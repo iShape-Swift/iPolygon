@@ -19,7 +19,7 @@ public extension ConvexOverlaySolver {
     
     static func debugIntersect(a: [FixVec], b: [FixVec]) -> [ABResult] {
         var result: [ABResult] = []
-        let pins = ConvexCrossSolver.intersect(polyA: a, polyB: b)
+        let pins = ConvexCrossSolver.intersect(pathA: a, pathB: b)
 
         guard !pins.isEmpty else { return [] }
         
@@ -90,14 +90,14 @@ public extension ConvexOverlaySolver {
         return unsafeArea
     }
     
-    static func debugIntersect(polyA a: [FixVec], polyB b: [FixVec]) -> Convex {
+    static func debugIntersect(pathA a: [FixVec], pathB b: [FixVec]) -> Convex {
         let bndA = Boundary(points: a)
         let bndB = Boundary(points: b)
-        let pins = Self.find(polyA: a, polyB: b, bndA: bndA, bndB: bndB)
-        return Self.debugIntersect(polyA: a, polyB: b, pins: pins, bndA: bndA, bndB: bndB)
+        let pins = Self.find(pathA: a, pathB: b, bndA: bndA, bndB: bndB)
+        return Self.debugIntersect(pathA: a, pathB: b, pins: pins, bndA: bndA, bndB: bndB)
     }
     
-    static func debugIntersect(polyA a: [FixVec], polyB b: [FixVec], pins: [Pin], bndA: Boundary, bndB: Boundary) -> Convex {
+    static func debugIntersect(pathA a: [FixVec], pathB b: [FixVec], pins: [Pin], bndA: Boundary, bndB: Boundary) -> Convex {
         guard pins.count > 1 else {
             if bndA.isOverlap(bndB) {
                 return Convex(centroid: b.centroid, path: b)

@@ -9,15 +9,15 @@ import iFixFloat
 
 extension ConvexCrossSolver {
     
-    static func bruteIntersect(polyA: [FixVec], polyB: [FixVec], bndA: Boundary, bndB: Boundary) -> [Pin] {
-        let listB = polyB.edges(filter: bndA)
+    static func bruteIntersect(pathA: [FixVec], pathB: [FixVec], bndA: Boundary, bndB: Boundary) -> [Pin] {
+        let listB = pathB.edges(filter: bndA)
         
         var pins = [Pin]()
 
-        var i0 = polyA.count - 1
-        var a0 = polyA[i0]
+        var i0 = pathA.count - 1
+        var a0 = pathA[i0]
         var i1 = 0
-        for a1 in polyA {
+        for a1 in pathA {
             let bd = Boundary(p0: a0, p1: a1)
             if bd.isCollide(bndB) {
                 let eA = Edge(p0: IndexPoint(index: i0, point: a0), p1: IndexPoint(index: i1, point: a1), bd: bd)

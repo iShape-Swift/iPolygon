@@ -9,8 +9,8 @@ import iFixFloat
 
 public struct ConvexOverlaySolver {
     
-    public static func find(polyA a: [FixVec], polyB b: [FixVec], bndA: Boundary, bndB: Boundary) -> [Pin] {
-        var pins = ConvexCrossSolver.intersect(polyA: a, polyB: b, bndA: bndA, bndB: bndB)
+    public static func find(pathA a: [FixVec], pathB b: [FixVec], bndA: Boundary, bndB: Boundary) -> [Pin] {
+        var pins = ConvexCrossSolver.intersect(pathA: a, pathB: b, bndA: bndA, bndB: bndB)
 
         guard pins.count > 1 else {
             return pins

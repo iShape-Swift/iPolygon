@@ -9,12 +9,12 @@ import iFixFloat
 
 public extension ConvexOverlaySolver {
 
-    static func intersect(polyA a: [FixVec], polyB b: [FixVec], bndA: Boundary, bndB: Boundary) -> Centroid {
-        let pins = Self.find(polyA: a, polyB: b, bndA: bndA, bndB: bndB)
-        return Self.intersect(polyA: a, polyB: b, pins: pins, bndA: bndA, bndB: bndB)
+    static func intersect(pathA a: [FixVec], pathB b: [FixVec], bndA: Boundary, bndB: Boundary) -> Centroid {
+        let pins = Self.find(pathA: a, pathB: b, bndA: bndA, bndB: bndB)
+        return Self.intersect(pathA: a, pathB: b, pins: pins, bndA: bndA, bndB: bndB)
     }
     
-    static func intersect(polyA a: [FixVec], polyB b: [FixVec], pins: [Pin], bndA: Boundary, bndB: Boundary) -> Centroid {
+    static func intersect(pathA a: [FixVec], pathB b: [FixVec], pins: [Pin], bndA: Boundary, bndB: Boundary) -> Centroid {
         guard pins.count > 1 else {
             if bndA.isOverlap(bndB) {
                 return b.centroid
